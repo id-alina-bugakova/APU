@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "apu_defs.h"
+#include "apu_math.h"
 #include "apu_state_machine.h"
 
 void state_machine_test() 
@@ -20,7 +22,20 @@ void state_machine_test()
     }
 }
 
+double func(double t) 
+{
+    return PI * binpow(t, 4) + PI * PI * binpow(t, 3) + t;
+}
+void math_test()
+{
+    printf("Answer:  %f\n", binpow(1.6, 19));
+    printf("Correct: 7555.786372591447\n\n");
+
+    printf("Answer:  %f\n", parab_integral(func, 0, 10));
+    printf("Correct: 87555.86449339830\n\n");
+}
+
 void main()
 {
-    state_machine_test();
+    math_test();
 }

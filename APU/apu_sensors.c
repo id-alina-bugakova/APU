@@ -110,11 +110,23 @@ void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id)
 		sensor->last_read   = 0;
 		break;
 
-	case SENSOR_TYPE_N:
+	case SENSOR_TYPE_N1:
 		sensor->type        = type;
 		sensor->id          = id;
 		sensor->min_value   = 0;
-		sensor->max_value   = 18000;
+		sensor->max_value   = 48000;
+		sensor->value       = 0;
+		sensor->unit        = UNIT_RPM;
+		sensor->has_power   = 0;
+		sensor->last_update = 0;
+		sensor->last_read   = 0;
+		break;
+
+	case SENSOR_TYPE_NGC:
+		sensor->type        = type;
+		sensor->id          = id;
+		sensor->min_value   = 0;
+		sensor->max_value   = 14400;
 		sensor->value       = 0;
 		sensor->unit        = UNIT_RPM;
 		sensor->has_power   = 0;
