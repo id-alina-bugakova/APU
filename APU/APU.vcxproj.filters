@@ -27,6 +27,9 @@
     <ClCompile Include="apu_math.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="apu_components.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apu_state_machine.h">

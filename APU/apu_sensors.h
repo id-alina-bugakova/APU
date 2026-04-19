@@ -9,6 +9,8 @@
 
 #pragma once
 
+#define SENSOR_BUFFER_SIZE 2
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -130,15 +132,15 @@ typedef enum
 */
 typedef struct
 {
-    Sensor_type type;      ///< Псевдоним датчика на борту
-    uint8_t id;            ///< Порядковый номер датчика (при резервировании)
-    double min_value;      ///< Минимальное измеряемое значение
-    double max_value;      ///< Максимальное измеряемое значение
-    double value;          ///< Числовое значение датчика
-    Unit unit;             ///< Единицы измерения датчика
-    bool has_power;        ///< Датчик подключен к электропитанию
-    time_t last_update;    ///< Время последнего обновления показателей датчика
-    time_t last_read;      ///< Время последнего считывания показателей датчика
+    Sensor_type type;                     ///< Псевдоним датчика на борту
+    uint8_t id;                           ///< Порядковый номер датчика (при резервировании)
+    double min_value;                     ///< Минимальное измеряемое значение
+    double max_value;                     ///< Максимальное измеряемое значение
+    Unit unit;                            ///< Единицы измерения датчика
+    bool fault;                           ///< Признак отказа датчика (0 - норма, 1 - отказ)
+    bool power;                           ///< Датчик подключен к электропитанию
+    double buffer[SENSOR_BUFFER_SIZE];    ///< Буфер задержки
+    double value;                         ///< Числовое значение датчика
 } Digital_sensor;
 
 /* @brief  Конфигурация дискретного датчика
@@ -147,12 +149,12 @@ typedef struct
 */
 typedef struct
 {
-    Sensor_type type;      ///< Псевдоним датчика на борту
-    uint8_t id;            ///< Порядковый номер датчика (при резервировании)
-    bool value;            ///< Значение датчика (однобитное)
-    bool has_power;        ///< Датчик подключен к электропитанию
-    time_t last_update;    ///< Время последнего обновления показателей датчика
-    time_t last_read;      ///< Время последнего считывания показателей датчика
+    Sensor_type type;                     ///< Псевдоним датчика на борту
+    uint8_t id;                           ///< Порядковый номер датчика (при резервировании)
+    bool fault;                           ///< Признак отказа датчика (0 - норма, 1 - отказ)
+    bool power;                           ///< Датчик подключен к электропитанию
+    bool buffer[SENSOR_BUFFER_SIZE];      ///< Буфер задержки
+    bool value;                           ///< Значение датчика (однобитное)
 } Discrete_sensor;
 
 
@@ -171,3 +173,7 @@ void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id);
 *  @param  uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
 */
 void init_discrete_sensor(Discrete_sensor* sensor, Sensor_type type, uint8_t id);
+
+void update_digital_sensor(Digital_sensor* sensor, double value);
+
+void update_discrete_sensor(Discrete_sensor* sensor, bool value);

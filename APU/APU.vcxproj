@@ -123,6 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="apu_components.c" />
     <ClCompile Include="apu_manager.c" />
     <ClCompile Include="apu_math.c" />
     <ClCompile Include="apu_sensors.c" />
