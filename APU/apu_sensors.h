@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <time.h>
 
 /* @brief  Единицы измерения
 */
@@ -175,5 +174,7 @@ void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id);
 void init_discrete_sensor(Discrete_sensor* sensor, Sensor_type type, uint8_t id);
 
 void update_digital_sensor(Digital_sensor* sensor, double value);
+void update_T2(Digital_sensor* T2, int height);
+void update_P2(Digital_sensor* P2, int height);
 
 void update_discrete_sensor(Discrete_sensor* sensor, bool value);
