@@ -1,5 +1,5 @@
 /* @file   apu_sensors.h
-*  @brief  Описание и инициализация датчиков
+*  @brief  Описание датчиков
 *
 *  @detail Файл содержит информацию о датчиках, структуры цифрового и дискретного датчиков  
 *  и функции инициализации датчиков.
@@ -11,7 +11,6 @@
 
 #define SENSOR_BUFFER_SIZE 2
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -30,7 +29,7 @@ typedef enum
 {
     /* @brief  Датчик давления топлива
     *
-    *  Давление топлива после насоса высокого давления; 0 .. 5000 psi
+    *  Давление топлива после насоса высокого давления; 0 - низкое, 1 - нормальное
     */
     SENSOR_TYPE_P_FUEL,
 
@@ -157,24 +156,43 @@ typedef struct
 } Discrete_sensor;
 
 
-/* @brief  Функция инициализации цифровых датчиков
+/* @brief Функция инициализации цифровых датчиков
 *
-*  @param  Digital_sensor* sensor : экземпляр сенсора, который будет инициализирован
-*  @param  Sensor_type type : тип сенсора
-*  @param  uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
+*  @param Digital_sensor* sensor : экземпляр сенсора, который будет инициализирован
+*  @param Sensor_type type : тип сенсора
+*  @param uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
 */
 void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id);
-
-/* @brief  Функция инициализации дискретных датчиков
+/* @brief Функция инициализации дискретных датчиков
 *
-*  @param  Discrete_sensor* sensor : экземпляр сенсора, который будет инициализирован
-*  @param  Sensor_type type : тип сенсора
-*  @param  uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
+*  @param Discrete_sensor* sensor : экземпляр сенсора, который будет инициализирован
+*  @param Sensor_type type : тип сенсора
+*  @param uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
 */
 void init_discrete_sensor(Discrete_sensor* sensor, Sensor_type type, uint8_t id);
 
+/* @brief Функция обновления цифрового датчика
+* 
+*  @param Digital_sensor* sensor : экземпляр сенсора, показания которого перезаписываем
+*  @param double value : новое показание датчика (отправляется в буфер)
+*/
 void update_digital_sensor(Digital_sensor* sensor, double value);
+/* @brief Функция обновления датчика температуры за бортом
+*
+*  @param Digital_sensor* T2 : экземпляр сенсора, показания которого перезаписываем
+*  @param int height : высота в метрах
+*/
 void update_T2(Digital_sensor* T2, int height);
+/* @brief Функция обновления датчка давления за бортом
+*
+*  @param Digital_sensor* P2 : экземпляр сенсора, показания которого перезаписываем
+*  @param int height : высота в метрах
+*/
 void update_P2(Digital_sensor* P2, int height);
 
+/* @brief Функция обновления дискретного датчика
+*
+*  @param Discrete_sensor* sensor : экземпляр сенсора, показания которого перезаписываем
+*  @param bool value : новое показание датчика (отправляется в буфер)
+*/
 void update_discrete_sensor(Discrete_sensor* sensor, bool value);

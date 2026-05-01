@@ -124,13 +124,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="apu_components.c" />
+    <ClCompile Include="apu_controller.c" />
     <ClCompile Include="apu_manager.c" />
     <ClCompile Include="apu_math.c" />
     <ClCompile Include="apu_sensors.c" />
     <ClCompile Include="apu_state_machine.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="apu_communtication.h" />
     <ClInclude Include="apu_components.h" />
+    <ClInclude Include="apu_controller.h" />
     <ClInclude Include="apu_defs.h" />
     <ClInclude Include="apu_math.h" />
     <ClInclude Include="apu_sensors.h" />

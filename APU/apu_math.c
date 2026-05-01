@@ -8,6 +8,22 @@
 
 #include "apu_math.h"
 
+double abs(double a)
+{
+    if (a < 0)
+        return -a;
+    return a;
+}
+
+int sign(double a)
+{
+    if (abs(a) < 1e-12)
+        return 0;
+    if (a < 0)
+        return -1;
+    return 1;
+}
+
 double binpow(double a, int p)
 {
     if (p == 0)

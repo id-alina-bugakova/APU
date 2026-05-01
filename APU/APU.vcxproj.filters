@@ -30,6 +30,9 @@
     <ClCompile Include="apu_components.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="apu_controller.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apu_state_machine.h">
@@ -45,6 +48,12 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="apu_math.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="apu_controller.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="apu_communtication.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

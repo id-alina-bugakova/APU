@@ -4,8 +4,6 @@
 *  @detail Файл содержит код функций, задающих начальные параметры датчикам в зависимости от типа.
 *
 *  @author Бугакова А.А.
-*
-*  @example
 */
 
 #include "apu_defs.h"
@@ -20,13 +18,6 @@ void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id)
 	sensor->power = OFF;
 	switch (type)
 	{
-	case SENSOR_TYPE_P_FUEL:
-		sensor->min_value = 0;
-		sensor->max_value = 5000;
-		sensor->unit      = UNIT_PSI;
-		sensor->value	  = 0;
-		break;
-
 	case SENSOR_TYPE_P2:
 		sensor->min_value = 0.5;
 		sensor->max_value = 32;

@@ -1,3 +1,12 @@
+/* @file   apu_components.h
+*  @brief  Объявление агрегатов
+*
+*  @detail Файл содержит информацию об агрегатах в виде структур и функции их инициализации и 
+*  обновления.
+*
+*  @author Бугакова А.А.
+*/
+
 #pragma once
 
 #define GGEN_BUFFER_SIZE 10
@@ -13,10 +22,10 @@
 */
 typedef struct
 {
-    bool power;                ///< Признак питания (0 - нет, 1 - есть)
-    bool open;                 ///< Признак положения (0 - закрыт, 1 - открыт)
-    bool fault;                ///< Признак заклинивания (0 - норма, 1 - заклинил)
-    Discrete_sensor sensor;    ///< Датчик положения клапана
+    bool power;                         ///< Признак питания (0 - нет, 1 - есть)
+    bool open;                          ///< Признак положения (0 - закрыт, 1 - открыт)
+    bool fault;                         ///< Признак заклинивания (0 - норма, 1 - заклинил)
+    Discrete_sensor sensor;             ///< Датчик положения клапана
 } Valve;
 
 /* @brief  Электростартер
@@ -37,24 +46,43 @@ typedef struct
     double turnoff_N;                   ///< N, при котором стартер выключается
 } Starter;
 
-/* @brief  Газогенератор
+/* @brief  Газогенератор с ПИД-регулятором
 * 
 *  Газогенератор не вырабатывает собственный момент до достижения start_moment_N оборотов.
 *  По достижении этого значения момент увеличивается линейно с ростом оборотов, пока не достигнет
 *  M_max Н*м при full_moment_N оборотах.  
-*  Подача топлива в газогенератор моделируется в виде инерционного звена 1-го порядка с разностным
-*  уравнением y[n+1] = k_yn * y[n] + k_u * u[n], где k_yn = 0.9934, k_u = 0.0797, u - признак 
-*  зажигания, y - скорость подачи топлива (макс. 12 кг/с). Подача топлива пересчитывается в момент
-*  с коэффициентом k_M.
+*  Подача топлива в газогенератор начинается при fuel_N оборотах и моделируется в виде инерционного
+*  звена 1-го порядка с разностным уравнением y[n+1] = k_yn * y[n] + k_u * u[n], где k_yn = 0.9934,
+*  k_u = 0.0797, u - признак зажигания, y - скорость подачи топлива (макс. 12 кг/с). Подача топлива
+*  пересчитывается в момент с коэффициентом k_M.
 *  При погасании факела в камере сгорания выход падает на 80%, после чего происходит выбег.
 *  У газогенератора присутствует транспортная задержка GGEN_BUFFER_SIZE тактов на доставку топлива 
 *  в камеру сгорания.
 *  Имеет ограничение момента M_max (250) Н*м. 
+*  Регулятор состоит из пропорционального звена с коэффициентом k_p, интегратора с коэффициентом 
+*  k_i и реального дифференцирующего звена с коэффициентом k_d (описывается уравнением 
+*  y[n+1] = k_d * (k_pid_un * u[n] + k_pid_un1 * u[n-1]) + k_pid_yn * y[n], где k_pid_un = 4.7619,
+*  k_pid_un1 = -4.7619, k_pid_yn = 0.9048, u - разностьь между желаемыми оборотами и реальными).
+*  После регулятора производится редукция с коэффициентом 1/40000 для приведения от оборотов к 
+*  признаку подачи питания. Выход регулятора ограничен значениями 0 и 1.
 */
 typedef struct
 {
+    double k_p;                         ///< Пропорциональный коэффициент ПИД-регулятора
+    double k_i;                         ///< Интегральный коэффициент ПИД-регулятора
+    double k_d;                         ///< Дифференциальный коэффициент ПИД-регулятора
+    double k_pid_un;                    ///< Коэффициент u[n] в РУ дифференцирующего звена
+    double k_pid_un1;                   ///< Коэффициент u[n-1] в РУ дифференцирующего звена
+    double k_pid_yn;                    ///< Коэффициент y[n] в РУ дифференцирующего звена
+    double N_diff_prev;                 ///< Вход регулятора на предыдущем шаге
+    double i_prev;                      ///< Выход И-звена регулятора на предыдущем шаге
+    double d_prev;                      ///< Выход Д-звена регулятора на предыдущем шаге
+    double k_fuel;                      ///< Коэффициент перевода в признак питания
+    double fuel_feed;                   ///< Признак питания газогенератора (от 0 до 1)
     bool ignition;                      ///< Признак горения топлива (0 - нет, 1 - есть)
     Discrete_sensor flame_sensor;       ///< Датчик факела в камере сгорания
+    double fuel_N;                      ///< N начала подачи топлива в турбину
+    double fuel_cmd;                    ///< Итоговая команда на подачу топлива (от 0 до 1)
     double k_yn;                        ///< Коэффициент y[n] в разностном уравнении подачи топлива
     double k_u;                         ///< Коэффициент u[n] в разностном уравнении подачи топлива
     double fuel;                        ///< Подача топлива, кг/с
@@ -83,8 +111,10 @@ typedef struct
 {
     double k_N;                         ///< Коэффициент усиления интегратора
     double M_diff;                      ///< Дифференциалтьный момент ротора в предыдущий такт
+    double k_friction;                  ///< Коэффициент для вычисления трения
     double N;                           ///< Обороты ротора, об./мин.
     double N_target;                    ///< Целевое значение оборотов ротора, об./мин.
+    double N_idle;                      ///< Малые обороты (25%), об./мин.
     double N_work;                      ///< 100% оборотов (рабочий режим), об./мин.
     Digital_sensor N1_0;                ///< Датчик частоты вращения ротора (основной)
     double N1_0_err;                    ///< Коэффициент ошибки датчка частоты вращения 0
@@ -156,7 +186,10 @@ typedef struct
     Digital_sensor NGC;                 ///< Датчик частоты вращения генератора
 } Generator;
 
-
+/* @brief  Топливный насос высокого давления
+*
+*  Потребляет постоянный момент мощности 1 Н*м, когда подача топлива включена.
+*/
 typedef struct
 {
     bool power;                         ///< Признак питания (0 - нет, 1 - есть)
@@ -164,19 +197,110 @@ typedef struct
     bool on;                            ///< Признак включения (0 - выключен, 1 - включен)
     double M;                           ///< Потребляемый момент в текущий такт
     double M_const;                     ///< Потребляемый момент при работе (постоянный)
-    Digital_sensor P_fuel;              ///< Датчик давления топлива
+    Discrete_sensor P_fuel;             ///< Датчик давления топлива
 } Fuel_pump;
 
+/* @brief  Пневматическая подсистема
+* 
+*  Комплекс воздушных клапанов и датчиков температуры и давления воздуха, управляемых ВСУ.
+*/
+typedef struct
+{
+    Valve asv;                          ///< Клапан отбора атмосферного воздуха
+    Digital_sensor T2;                  ///< Датчик температуры атмосферного воздуха
+    Digital_sensor P2;                  ///< Датчик давления атмосферного воздуха
+    Valve bsv;                          ///< Входной клапан пневмосистемы
+    double P_loss;                      ///< Потери давления между компрессором и пневмосистемой
+    double k_T;                         ///< Коэффициент охлаждения воздуха перед пневмосистемой
+    Digital_sensor T_duct;              ///< Температура на входе в пневмосистему
+    Digital_sensor P_duct;              ///< Давление на входе в пневмосистему
+    Valve fcv;                          ///< Перекрестный клапан СКВ/МСУ
+    Valve mpu_xbleed;                   ///< Перекрестный клапан двигателей МСУ
+} Pneumatic_system;
 
+
+/* @brief Функция инициализации клапана (сенсор клапана инициализируется отдельно!)
+* 
+*  @param Valve* valve : инициализируемый клапан
+*/
+void init_valve(Valve* valve); 
+
+/* @brief Функция инициализации электростратера
+*
+*  @param Starter* starter : инициализируемый электростартер
+*/
 void init_starter(Starter* starter);
+
+/* @brief Функция инициализации газогенератора
+*
+*  @param Gas_generator* ggen : инициализируемый газогенератор
+*/
 void init_gas_generator(Gas_generator* ggen);
+
+/* @brief Функция инициализации ротора
+*
+*  @param Rotor* rotor : инициализируемый ротор
+*/
 void init_rotor(Rotor* rotor);
+
+/* @brief Функция инициализации компрессора
+*
+*  @param Compressor* comp : инициализируемый компрессор
+*/
 void init_compressor(Compressor* comp);
+
+/* @brief Функция инициализации вентилятора отсека
+*
+*  @param Cooling_fan* fan : инициализируемый вентилятор
+*/
 void init_cooling_fan(Cooling_fan* fan);
+
+/* @brief Функция инициализации генератора
+*
+*  @param Generator* gen : инициализируемый генератор
+*/
 void init_generator(Generator* gen);
 
+/* @brief Функция инициализации топливного насоса
+*  
+*  @param Fuel_pump* pump : инициализируемый насос
+*/
+void init_fuel_pump(Fuel_pump* pump);
+
+/* @brief Функция инициализации пневмосистемы
+*  
+*  @param Fuel_pump* pump : инициализируемая пневмосистема
+*/
+void init_pneumatic_system(Pneumatic_system* psys);
+
+
+/* @brief Функция обновления электростартера (1 раз в такт)
+* 
+*  @param Starter* starter : указатель на стартер
+*  @param bool turn_on_cmd : команда включения (начало последовательности запуска)
+*  @param Rotor* rotor : указатель на ротор, который приводится в движение
+*/
 void update_starter(Starter* starter, bool turn_on_cmd, Rotor* rotor);
-void update_gas_generator(Gas_generator* ggen, bool ignition, Rotor* rotor);
+
+/* @brief Функция обновления газогенератора (1 раз в такт)
+* 
+*  @param Gas_generator* ggen : указатель на газогенератор
+*  @param bool ignition : признак наличия зажигания (факела в камере сгорания)
+*  @param Rotor* rotor : указатель на ротор, который приводится в движение
+*/
+void update_gas_generator(Gas_generator* ggen, bool ignition, Rotor* rotor, Fuel_pump* pump);
+
+/* @brief Функция оновления ротора (1 раз в такт)
+* 
+*  @param Rotor* rotor : указатель на ротор
+*  @param Starter* start : указатель на стартер для получения момента
+*  @param Gas_generator* ggen : указаетль на газогенератор для получения момента
+*  @param Compressor* comp : указатель на компрессор для получения момента нагрузки
+*  @param Cooling_fan* fan : указатель на вентилятор для получения момента нагрузки
+*  @param Generator* gen : указатель на генератор для получения момента нагрузки
+*  @param Fuel_pump* pump : указатель на топливный насос для получения момента нагрузки
+*  @param Digital_sensor* T2 : указатель на датчик температуры за бортом
+*/
 void update_rotor(
     Rotor* rotor,
     Starter* start,
@@ -186,8 +310,67 @@ void update_rotor(
     Generator* gen,
     Fuel_pump* pump,
     Digital_sensor* T2);
-void update_compressor(Compressor* comp, Rotor* rotor, Digital_sensor* P2, Digital_sensor* T2);
+
+/* @brief Функция обновления компрессора (1 раз в такт)
+* 
+*  @param Compressor* comp : указатель на компрессор
+*  @param Rotor* rotor : указатель на ротор для получения оборотов
+*  @param Digital_sensor* P2 : указатель на датчик давления за бортом
+*  @param Digital_sensor* T2 : указатель на датчик температуры за бортом
+*/
+void update_compressor(Compressor* comp, Rotor* rotor, Pneumatic_system* psys);
+
+/* @brief Функция обновления вентилятора отсека (1 раз в такт)
+* 
+*  @param Cooling_fan* fan : указатель на вентилятор
+*  @param Rotor* rotor : указатель на ротор для получения оборотов
+*/
 void update_cooling_fan(Cooling_fan* fan, Rotor* rotor);
+
+/* @brief Функция обновления генератора (1 раз в такт)
+* 
+*  @param Generator* gen : указатель на генератор
+*  @param bool turn_on_cmd : команда включения генератора (GEN ON)
+*  @param bool turn_off_cmd : команда выключения генератора (GEN OFF)
+*  @param Rotor* rotor : указатель на ротор для получения оборотов
+*/
 void update_generator(Generator* gen, bool turn_on_cmd, bool turn_off_cmd, Rotor* rotor);
 
+/* @brief Функция обновления топливного насоса (1 раз в такт)
+* 
+*  @param Fuel_pump* pump : казатель на насос
+*  @param bool power : признак питания насоса
+*  @param bool turn_on_cmd : команда включения насоса
+*  @param bool turn_off_cmd : команда выключения насоса
+*/
+void update_fuel_pump(
+    Fuel_pump* pump,
+    bool power,
+    bool turn_on_cmd,
+    bool turn_off_cmd);
+
+/* @brief Функция обновления пневмосистемы (1 раз в такт)
+* 
+*  @param Pneumatic_system* psys : казатель на пневмосистему
+*  @param bool asv_open : признак открытия клапана забора атмосферного воздуха
+*  @param int height : высота полета
+*  @param bool bsv_open : признак открытия входного клапана пневмосистемы
+*  @param bool fcv_pos : признак положения перекрестного клапана СКВ/МСУ
+*  @param bool mpu_xbleed_pos : признак положения перекрестного клапана МСУ
+*/
+void update_pneumatic_system(
+    Pneumatic_system* psys,
+    bool asv_open,
+    int height,
+    bool bsv_open,
+    bool fcv_pos,
+    bool mpu_xbleed_pos,
+    Compressor* comp);
+
+
+/* @brief Функция изменения целевых оборотов ротора
+*  
+*  @param Rotor* rotor : указатель на ротор
+*  @param double N_target : целевое число оборотов в об./мин.
+*/
 void rotor_set_target_N(Rotor* rotor, double N_target);
