@@ -11,61 +11,63 @@
 #pragma once
 
 ///< Названия состояний
-#define APU_STATES                   \
-    {                                \
-        "OFF",                       \
-        "IDLE",                      \
-        "TEST",                      \
-        "START",                     \
-        "AUTO START",                \
-        "EMERGENCY START",           \
-        "IDLE RUN",                  \
-        "BLEED",                     \
-        "GENERATOR",                 \
-        "BLEED + GENERATOR",         \
-        "MPU START",                 \
-        "IDLE RUN [LIMITED]",        \
-        "GENERATOR [LIMITED]",       \
-        "MPU START [LIMITED]",       \
-        "COOLDOWN",                  \
-        "NORMAL SHUTDOWN",           \
-        "APU FIRE",                  \
-        "OVERHEAT",                  \
-        "OVERSPEED",                 \
-        "FLAME OUT",                 \
-        "RELIGHT",                   \
-        "EMERGENCY SHUTDOWN"         \
+#define APU_STATES                    \
+    {                                 \
+        "OFF",                        \
+        "IDLE",                       \
+        "TEST",                       \
+        "START",                      \
+        "AUTO START",                 \
+        "EMERGENCY START",            \
+        "IDLE RUN",                   \
+        "BLEED",                      \
+        "GENERATOR",                  \
+        "BLEED + GENERATOR",          \
+        "MPU START",                  \
+        "IDLE RUN [LIMITED]",         \
+        "GENERATOR [LIMITED]",        \
+        "MPU START [LIMITED]",        \
+        "COOLDOWN",                   \
+        "NORMAL SHUTDOWN",            \
+        "APU FIRE",                   \
+        "OVERHEAT",                   \
+        "OVERSPEED",                  \
+        "FLAME OUT",                  \
+        "RELIGHT",                    \
+        "EMERGENCY SHUTDOWN",         \
+        "INDEFINITE"                  \
     }
 
 ///< Названия событий
-#define APU_EVENTS                   \
-    {                                \
-        "POWER ON",                  \
-        "TEST START COMMAND",        \
-        "TEST COMPLETED",            \
-        "START COMMAND",             \
-        "AUTO START COMMAND",        \
-        "EMERGENCY START COMMAND",   \
-        "START SUCCESS",             \
-        "START FAILURE",             \
-        "START ABORTED",             \
-        "BLEED ON COMMAND",          \
-        "GENERATOR ON COMMAND",      \
-        "MPU ON COMMAND",            \
-        "BLEED OFF COMMAND",         \
-        "GENERATOR OFF COMMAND",     \
-        "MPU OFF COMMAND",           \
-        "NORMAL SHUTDOWN COMMAND",   \
-        "COOLDOWN TIMEOUT",          \
-        "APU STOPPED",               \
-        "POWER OFF",                 \
-        "FIRE DETECTED",             \
-        "OVERHEAT DETECTED",         \
-        "OVERSPEED DETECTED",        \
-        "FLAME WENT OUT",            \
-        "RELIGHT ATTEMPT COMMAND",   \
-        "FLAME_RESTORED",            \
-        "EMERGENCY SHUTDOWN COMMAND" \
+#define APU_EVENTS                    \
+    {                                 \
+        "POWER ON",                   \
+        "TEST START COMMAND",         \
+        "TEST COMPLETED",             \
+        "START COMMAND",              \
+        "AUTO START COMMAND",         \
+        "EMERGENCY START COMMAND",    \
+        "START SUCCESS",              \
+        "START FAILURE",              \
+        "START ABORTED",              \
+        "BLEED ON COMMAND",           \
+        "GENERATOR ON COMMAND",       \
+        "MPU ON COMMAND",             \
+        "BLEED OFF COMMAND",          \
+        "GENERATOR OFF COMMAND",      \
+        "MPU OFF COMMAND",            \
+        "NORMAL SHUTDOWN COMMAND",    \
+        "COOLDOWN TIMEOUT",           \
+        "APU STOPPED",                \
+        "POWER OFF",                  \
+        "FIRE DETECTED",              \
+        "OVERHEAT DETECTED",          \
+        "OVERSPEED DETECTED",         \
+        "FLAME WENT OUT",             \
+        "RELIGHT ATTEMPT COMMAND",    \
+        "FLAME_RESTORED",             \
+        "EMERGENCY SHUTDOWN COMMAND", \
+        "NONE"                        \
     }
 
 /* @brief  Состояния конечного автомата
@@ -134,7 +136,9 @@ typedef enum {
 
     STATE_RELIGHT,                  ///< Аварийное состояние - попытка повторного зажигания
 
-    STATE_EMERGENCY_SHUTDOWN        ///< Аварийное отключение: быстрая остановка ВСУ
+    STATE_EMERGENCY_SHUTDOWN,       ///< Аварийное отключение: быстрая остановка ВСУ
+
+    STATE_INDEFINITE                ///< Неопредленное состояние для алгоритма
 } State;
 
 /* @brief  События, приводящие к смене состояний конечного автомата
@@ -165,7 +169,8 @@ typedef enum {
     EVENT_FLAME_WENT_OUT,           ///< Пропал факел в камере сгорания
     EVENT_RELIGHT_ATTEMPT_CMD,      ///< Получена команда произвести попытку повторного зажигания
     EVENT_FLAME_RESTORED,           ///< После повторного зажигания пламя появилось
-    EVENT_EMERGENCY_SHUTDOWN_CMD    ///< Получена команда аварийного выключения
+    EVENT_EMERGENCY_SHUTDOWN_CMD,   ///< Получена команда аварийного выключения
+    EVENT_NONE                      ///< Пустое событие
 } Event;
 
 

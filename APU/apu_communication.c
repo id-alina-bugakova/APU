@@ -1,0 +1,87 @@
+#include "apu_communication.h"
+#include "apu_defs.h"
+
+void init_messages(Messages* msgs)
+{
+    msgs->eps.ext_power_avail       = 0;
+    msgs->eps.gen_switch            = 0;
+    msgs->eps.apb_stat              = 0;
+    msgs->fs.fuel_avail             = 1;
+    msgs->fs.low_pres_warn          = 0;
+    msgs->air_cs.bleed_air_demand   = 0;
+    msgs->air_cs.duct_pres          = 0;
+    msgs->mpu.eng_start             = 0;
+    msgs->mpu.eng_switch            = 0;
+    msgs->mpu.eng_start_cutoff      = 0;
+    msgs->fps.fire_sig              = 0;
+    msgs->rcs.apu_power             = 0;
+    msgs->rcs.test                  = 0;
+    msgs->rcs.start_cmd             = 0;
+    msgs->rcs.stop_cmd              = 0;
+    msgs->auto_cs.auto_start        = 0;
+}
+
+void init_responses(Responses* rsps)
+{
+    rsps->eps.power_avail           = 0;
+    rsps->fs.fuel_demand            = 0;
+    rsps->air_cs.apu_bleed_avail    = 0;
+    rsps->mpu.apu_bleed_avail       = 0;
+    rsps->mpu.apu_bleed_valve_stat  = 0;
+    rsps->mpu.crossbleed_valve_stat = 0;
+    rsps->mpu.eng_bleed_valve_stat  = 0;
+    rsps->mpu.apu_bleed_pres        = 0.0;
+    rsps->rcs.power_on              = 0;
+    rsps->rcs.apu_fault             = 0;
+    rsps->rcs.critical_fault        = 0;
+    rsps->rcs.start                 = 0;
+    rsps->rcs.N1                    = 0.0;
+    rsps->rcs.EGT                   = ATMOSPHERIC_TEMP;
+}
+
+void init_actions(Actions* acts)
+{
+    acts->turn_on_cmd               = 0;
+    acts->ignite                    = 0;
+    acts->set_N                     = 0;
+    acts->N_target                  = 0;
+    acts->update_air_demand         = 0;
+    acts->open_asv                  = 0;
+    acts->open_bsv                  = 0;
+    acts->close_bsv                 = 0;
+    acts->switch_fcv_to_acs         = 0;
+    acts->switch_fcv_to_mpu         = 0;
+    acts->switch_xbleed_to_left     = 0;
+    acts->switch_xbleed_to_right    = 0;
+    acts->update_gen_demand         = 0;
+    acts->gen_demand                = 0;
+}
+
+void init_data(Data* data)
+{
+    data->prev_state            = STATE_INDEFINITE;
+    data->parent_state          = STATE_INDEFINITE;
+    data->fault                 = 0;
+    data->critical_fault        = 0;
+    data->emergency_found       = 0;
+    data->fire                  = 0;
+    data->starting              = 0;
+    data->last_start_cmd        = 0;
+    data->EGT_cur               = ATMOSPHERIC_TEMP;
+    data->N_cur                 = 0;
+    data->ovheat                = 0;
+    data->last_ovheat_detected  = 0;
+    data->demanded_fuel         = 0;
+    data->last_demanded_fuel    = 0;
+    data->ignited               = 0;
+    data->cooling               = 0;
+    data->last_cooldown_start   = 0;
+}
+
+void init_physical(Physical* phys)
+{
+    phys->height = 0;
+    phys->ignited = 0;
+    phys->enough_pressure = 0;
+}
+

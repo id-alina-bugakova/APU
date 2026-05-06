@@ -26,22 +26,29 @@ void init_starter(Starter* starter)
     starter->k_u       = 0.3987;
     starter->M         = 0;
     starter->M_max     = 60;
-    starter->turnoff_N = 15;
+    starter->turnoff_N = 6000;
+}
+
+void init_PID(PID* pid)
+{
+    pid->k_p[0]         = 11.999549; 
+    pid->k_p[1]         = 12.675221;
+    pid->k_i[0]         = 0.20018217;
+    pid->k_i[1]         = 0.020742308;
+    pid->k_d[0]         = 0.2998349;
+    pid->k_d[1]         = 0.27940389;
+    pid->k_pid_un       = 4.7619;
+    pid->k_pid_un1      = 4.7619;
+    pid->k_pid_yn       = 0.9048;
+    pid->N_diff_prev    = 0;
+    pid->i_prev         = 0;
+    pid->d_prev         = 0;
+    pid->k_fuel         = 1.0 / 40000.0;
+    pid->fuel_feed      = 0;
 }
 
 void init_gas_generator(Gas_generator* ggen)
 {
-    ggen->k_p            = 10;
-    ggen->k_i            = 0.22045287;
-    ggen->k_d            = 0.29807349;
-    ggen->k_pid_un       = 4.7619;
-    ggen->k_pid_un1      = 4.7619;
-    ggen->k_pid_yn       = 0.9048;
-    ggen->N_diff_prev    = 0;
-    ggen->i_prev         = 0;
-    ggen->d_prev         = 0;
-    ggen->k_fuel         = 1.0 / 40000.0;
-    ggen->fuel_feed      = 0;
     ggen->ignition       = OFF;
     ggen->fuel_N         = 2400;
     ggen->fuel_cmd       = 0;
@@ -68,7 +75,8 @@ void init_rotor(Rotor* rotor)
     rotor->N          = 0;
     rotor->N_target   = 0;
     rotor->N_idle     = 10000;
-    rotor->N_work     = 40000;
+    rotor->N_work     = 39000;
+    rotor->N_limited  = 32000;
     rotor->EGT        = ATMOSPHERIC_TEMP;
     rotor->delta_EGT  = 0;
     rotor->N1_0_err   = 1.02;
@@ -88,13 +96,15 @@ void init_rotor(Rotor* rotor)
 
 void init_compressor(Compressor* comp)
 {
-    comp->k_NM = 1.4e-7;
-    comp->M    = 0;
-    comp->k_NP = 2.8e-8;
-    comp->P    = ATMOSPHERIC_PRES;
-    comp->k_T1 = 0.2;
-    comp->k_T2 = 0.9;
-    comp->T    = ATMOSPHERIC_TEMP;
+    comp->k_NM  = 1.1e-7;
+    comp->k_inc = 1.3;
+    comp->bleed = 0;
+    comp->M     = 0;
+    comp->k_NP  = 2.8e-8;
+    comp->P     = ATMOSPHERIC_PRES;
+    comp->k_T1  = 0.2;
+    comp->k_T2  = 0.9;
+    comp->T     = ATMOSPHERIC_TEMP;
 
     init_digital_sensor(&(comp->P3), SENSOR_TYPE_P3, 0);
     init_digital_sensor(&(comp->T3), SENSOR_TYPE_T3, 0);
@@ -113,7 +123,7 @@ void init_cooling_fan(Cooling_fan* fan)
 void init_generator(Generator* gen)
 {
     gen->on       = 0;
-    gen->N_turnon = 8000;
+    gen->N_turnon = 31000;
     gen->M        = 0;
     gen->M_const  = 15;
 
@@ -165,24 +175,42 @@ void update_starter(Starter* starter, bool turn_on_cmd, Rotor* rotor)
     starter->M = MIN(starter->M_max, starter->k_yn * starter->M + starter->k_u * starter->power);
 }
 
-void update_gas_generator(Gas_generator* ggen, bool ignition, Rotor* rotor, Fuel_pump* pump)
+void update_PID(PID* pid, Rotor* rotor)
 {
-    // ПИД-регулятор
     double N_diff = rotor->N_target - rotor->N;
-    double p = ggen->k_p * N_diff;
+    double p, i, d;
+    if (rotor->N <= PID_N)
+        p = pid->k_p[0] * N_diff;
+    else
+        p = pid->k_p[1] * N_diff;
     // Численное интегрирование методом трапеций
     // y[n+1] = y[n] + k * T * (u[n] + u[n-1]) / 2
-    double i = ggen->i_prev + ggen->k_i * H * (N_diff + ggen->N_diff_prev) / 2;
+    if (rotor->N <= PID_N)
+        i = pid->i_prev + pid->k_i[0] * H * (N_diff + pid->N_diff_prev) / 2;
+    else
+        i = pid->i_prev + pid->k_i[1] * H * (N_diff + pid->N_diff_prev) / 2;
     // Получено методом билинейного преобразования Тастина
     // y[n+1] = k_pid_yn * y[n] + k_d * (k_pid_un * u[n] + k_pid_un1 * u[n-1])
-    double d = ggen->k_pid_yn * ggen->d_prev 
-        + ggen->k_d * (ggen->k_pid_un * N_diff + ggen->k_pid_un1 * ggen->N_diff_prev);
+    if (rotor->N <= PID_N)
+        d = pid->k_pid_yn * pid->d_prev
+            + pid->k_d[0] * (pid->k_pid_un * N_diff + pid->k_pid_un1 * pid->N_diff_prev);
+    else
+        d = pid->k_pid_yn * pid->d_prev
+            + pid->k_d[1] * (pid->k_pid_un * N_diff + pid->k_pid_un1 * pid->N_diff_prev);
     // Перевод в признак топлива и ограничение 
-    ggen->fuel_feed = MAX(0, MIN(1, ggen->k_fuel * (p + i + d)));
+    pid->fuel_feed = MAX(0, MIN(1, pid->k_fuel * (p + i + d)));
     // Обновление значений для следующего шага
-    ggen->i_prev = i;
-    ggen->d_prev = d;
+    pid->i_prev = i;
+    pid->d_prev = d;
+}
 
+void update_gas_generator(
+    Gas_generator* ggen, 
+    bool ignition, 
+    PID* pid, 
+    Rotor* rotor, 
+    Fuel_pump* pump)
+{
     // Обновление параметра и датчика пламени в камере сгорания
     bool flame_went_out = (ggen->ignition && !ignition);
     ggen->ignition = ignition;
@@ -198,7 +226,7 @@ void update_gas_generator(Gas_generator* ggen, bool ignition, Rotor* rotor, Fuel
     if (rotor->N < ggen->fuel_N)
         ggen->fuel_cmd = 0;
     else
-        ggen->fuel_cmd = ggen->fuel_feed;
+        ggen->fuel_cmd = pid->fuel_feed;
     // Вычисление скорости подачи топлива, если включен насос
     // y[n+1] = k_yn * y[n] + k_u * u[n]  + ограничение момента
     if (pump->on)
@@ -291,6 +319,9 @@ void update_compressor(Compressor* comp, Rotor* rotor, Pneumatic_system* psys)
 {
     // Расчет выходных параметров
     comp->M = comp->k_NM * binpow(rotor->N, 2);
+    // Если есть подача воздуха в пневмосистему
+    if (comp->bleed)
+        comp->M = comp->M * comp->k_inc;
     comp->P = psys->P2.value + comp->k_NP * binpow(rotor->N, 2);
     comp->T = (KELVIN + psys->T2.value) 
         * (comp->k_T1 * comp->P3.value / psys->P2.value + comp->k_T2) - KELVIN;

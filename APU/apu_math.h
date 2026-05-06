@@ -13,7 +13,7 @@
 *  @param  double a : подмодульное выражение
 *  @return |a|
 */
-double abs(double a);
+double double_abs(double a);
 
 /* @brief  Функция определения знака числа
 * 

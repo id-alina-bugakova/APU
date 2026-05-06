@@ -7,13 +7,17 @@
 * 
 *  @example
 *  int state_machine = STATE_OFF;
-*  state_machine = handle_event(state_machine, POWER_ON);
+*  state_machine = handle_event(state_machine, POWER_ON, 0);
 */
 
 #include "apu_state_machine.h"
 
+
 State handle_event(State current, Event event)
 {
+    // Неопредленное состояние
+    if (current == STATE_INDEFINITE)
+        return STATE_INDEFINITE;
     // Аварийные состояния
     switch (event)
     {
@@ -23,23 +27,25 @@ State handle_event(State current, Event event)
             return STATE_APU_FIRE;
         break;
 
-    // Перегрев может произойти в любом состоянии кроме выключенного, при пожаре не важно
+    // Перегрев может произойти в любом состоянии кроме выкл./idle/тест, при пожаре не важно
     case EVENT_OVHEAT_DETECTED:
-        if (current != STATE_OFF && current != STATE_APU_FIRE)
+        if (current != STATE_OFF && current != STATE_IDLE &&
+            current != STATE_TEST && current != STATE_APU_FIRE)
             return STATE_EGT_OVER_LIMIT;
         break;
 
-    // Превышение скорости может произойти в любом состоянии кроме выключенного, при пожаре
-    //     не важно
+    // Превышение скорости может произойти в любом состоянии кроме выкл./idle/тест, при пожаре не
+    //     важно
     case EVENT_OVSPEED_DETECTED:
-        if (current != STATE_OFF && current != STATE_APU_FIRE)
+        if (current != STATE_OFF && current != STATE_IDLE &&
+            current != STATE_TEST && current != STATE_APU_FIRE)
             return STATE_OVSPEED;
         break;
 
     // Факел может погаснуть в любом запущенном состоянии и при попытке зажечь его заново, 
     //     при других аварийных состояниях не важно
     case EVENT_FLAME_WENT_OUT:
-        if (current == STATE_IDLE       || current == STATE_START             ||
+        if (current == STATE_START      ||
             current == STATE_AUTO_START || current == STATE_EMERGENCY_START   ||
             current == STATE_IDLE_RUN   || current == STATE_IDLE_RUN_LIMITED  ||
             current == STATE_MPU_START  || current == STATE_MPU_START_LIMITED ||
@@ -58,7 +64,7 @@ State handle_event(State current, Event event)
     // Восстановление факела происходит после попытки повторного зажигания
     case EVENT_FLAME_RESTORED:
         if (current == STATE_RELIGHT)
-            return STATE_IDLE;
+            return STATE_IDLE_RUN_LIMITED;
         break;
 
     // Аварийное отключение происходит из аварийных состояний

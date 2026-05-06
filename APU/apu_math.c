@@ -8,7 +8,7 @@
 
 #include "apu_math.h"
 
-double abs(double a)
+double double_abs(double a)
 {
     if (a < 0)
         return -a;
@@ -17,7 +17,7 @@ double abs(double a)
 
 int sign(double a)
 {
-    if (abs(a) < 1e-12)
+    if (double_abs(a) < 1e-12)
         return 0;
     if (a < 0)
         return -1;
