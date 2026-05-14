@@ -13,20 +13,22 @@
 
 void init_valve(Valve* valve)
 {
-    valve->power = OFF;
-    valve->open  = 0;
-    valve->fault = 0;
+    valve->power        = OFF;
+    valve->open_cmd     = 0;
+    valve->close_cmd    = 0;
+    valve->open         = 0;
+    valve->fault        = 0;
     // Датчик инициализируется отдельно в зависисмости от его типа
 }
 
 void init_starter(Starter* starter)
 {
-    starter->power     = OFF;
-    starter->k_yn      = 0.9934;
-    starter->k_u       = 0.3987;
-    starter->M         = 0;
-    starter->M_max     = 60;
-    starter->turnoff_N = 6000;
+    starter->power      = OFF; 
+    starter->k_yn       = 0.9934;
+    starter->k_u        = 0.3987;
+    starter->M          = 0;
+    starter->M_max      = 60;
+    starter->turnoff_N  = 6000;
 }
 
 void init_PID(PID* pid)
@@ -50,6 +52,7 @@ void init_PID(PID* pid)
 void init_gas_generator(Gas_generator* ggen)
 {
     ggen->ignition       = OFF;
+    ggen->ignited        = OFF;
     ggen->fuel_N         = 2400;
     ggen->fuel_cmd       = 0;
     ggen->k_yn           = 0.9934;
@@ -124,6 +127,7 @@ void init_generator(Generator* gen)
 {
     gen->on       = 0;
     gen->N_turnon = 31000;
+    gen->N_own    = 12000;
     gen->M        = 0;
     gen->M_const  = 15;
 
@@ -132,10 +136,13 @@ void init_generator(Generator* gen)
 
 void init_fuel_pump(Fuel_pump* pump)
 {
-    pump->power   = OFF;
-    pump->on      = 0;
-    pump->M       = 0;
-    pump->M_const = 1;
+    pump->power         = OFF;
+    pump->fault         = 0;
+    pump->turn_on_cmd   = 0;
+    pump->turn_off_cmd  = 0;
+    pump->on            = 0;
+    pump->M             = 0;
+    pump->M_const       = 1;
 
     init_valve(&(pump->fuel_sov));
     init_discrete_sensor(&(pump->fuel_sov.sensor), SENSOR_TYPE_FUEL_SOV, 0);
@@ -161,14 +168,28 @@ void init_pneumatic_system(Pneumatic_system* psys)
     init_discrete_sensor(&(psys->mpu_xbleed.sensor), SENSOR_TYPE_MPU_XBLEED, 0);
 }
 
+void init_APU(APU* apu)
+{
+    init_starter(&(apu->start));
+    init_PID(&(apu->pid));
+    init_gas_generator(&(apu->ggen));
+    init_rotor(&(apu->rotor));
+    init_compressor(&(apu->comp));
+    init_cooling_fan(&(apu->fan));
+    init_generator(&(apu->gen));
+    init_fuel_pump(&(apu->pump));
+    init_pneumatic_system(&(apu->psys));
+}
 
-void update_starter(Starter* starter, bool turn_on_cmd, Rotor* rotor)
+
+void update_starter(Starter* starter, Rotor* rotor)
 {
     // Логика включения-выключения
-    if (rotor->N >= starter->turnoff_N)
+    if (rotor->N >= starter->turnoff_N || starter->turn_off_cmd)
+    {
         starter->power = OFF;
-    if (turn_on_cmd)
-        starter->power = ON;
+        starter->turn_off_cmd = 0;
+    }
 
     // Вычисление момента
     // y[n+1] = k_yn * y[n] + k_u * u[n]  + ограничение момента
@@ -206,16 +227,15 @@ void update_PID(PID* pid, Rotor* rotor)
 
 void update_gas_generator(
     Gas_generator* ggen, 
-    bool ignition, 
     PID* pid, 
     Rotor* rotor, 
     Fuel_pump* pump)
 {
     // Обновление параметра и датчика пламени в камере сгорания
-    bool flame_went_out = (ggen->ignition && !ignition);
-    ggen->ignition = ignition;
+    bool flame_went_out = (ggen->ignited && !ggen->ignition);
+    ggen->ignited = ggen->ignition;
     if (!ggen->flame_sensor.fault)
-        update_discrete_sensor(&(ggen->flame_sensor), ignition);
+        update_discrete_sensor(&(ggen->flame_sensor), ggen->ignition);
     
     // Реализация транспортной задержки
     ggen->M = ggen->buffer[0];
@@ -230,7 +250,7 @@ void update_gas_generator(
     // Вычисление скорости подачи топлива, если включен насос
     // y[n+1] = k_yn * y[n] + k_u * u[n]  + ограничение момента
     if (pump->on)
-        ggen->fuel = MAX(ggen->fuel_max, ggen->k_yn * ggen->fuel + ggen->k_u * ggen->fuel_cmd);
+        ggen->fuel = MIN(ggen->fuel_max, ggen->k_yn * ggen->fuel + ggen->k_u * ggen->fuel_cmd);
     else
         ggen->fuel = 0;
 
@@ -260,13 +280,13 @@ void update_rotor(
     Digital_sensor* T2)
 {
     // Вычисление входного и дифференциального моментов ротора
-    double M          = start->M + gen->M;
+    double M          = start->M + ggen->M;
     double M_friction = rotor->k_friction * sign(rotor->N);
-    double M_diff     = start->M + gen->M - comp->M - fan->M - gen->M - pump->M - M_friction;
+    double M_diff     = start->M + ggen->M - comp->M - fan->M - gen->M - pump->M - M_friction;
 
     // Вычисление скорости вращения: численное интегрирование методом трапеций
     // y[n+1] = y[n] + k * T * (u[n] + u[n-1]) / 2
-    rotor->N = rotor->N + rotor->k_N * H * (rotor->M_diff + M_diff) / 2;
+    rotor->N = MAX(0, rotor->N + rotor->k_N * H * (rotor->M_diff + M_diff) / 2);
     // Сохранение значения момента для следующего шага
     rotor->M_diff = M_diff;
 
@@ -324,7 +344,7 @@ void update_compressor(Compressor* comp, Rotor* rotor, Pneumatic_system* psys)
         comp->M = comp->M * comp->k_inc;
     comp->P = psys->P2.value + comp->k_NP * binpow(rotor->N, 2);
     comp->T = (KELVIN + psys->T2.value) 
-        * (comp->k_T1 * comp->P3.value / psys->P2.value + comp->k_T2) - KELVIN;
+        * (comp->k_T1 * comp->P / psys->P2.value + comp->k_T2) - KELVIN;
 
     // Запись показаний на датчики
     if(!comp->P3.fault)
@@ -357,32 +377,31 @@ void update_cooling_fan(Cooling_fan* fan, Rotor* rotor)
     }
 }
 
-void update_generator(Generator* gen, bool turn_on_cmd, bool turn_off_cmd, Rotor* rotor)
+void update_generator(Generator* gen, Rotor* rotor)
 {
-    // При падении оборотов или команде выключения генератор отключается
-    if (rotor->N < gen->N_turnon || turn_off_cmd)
-    {
+    // При падении оборотов генератор отключается
+    if (rotor->N < gen->N_turnon)
         gen->on = 0;
-        gen->M  = 0;
-    }
-    // При команде включения генератор включается, если достаточные обороты
-    else if (turn_on_cmd)
-    {
-        gen->on = 1;
-        gen->M  = gen->M_const;
-    }  
+
+    if (gen->on)
+        gen->M = gen->M_const;
+    else
+        gen->M = 0;
+
+    update_digital_sensor(&(gen->NGC), gen->on * gen->N_own);
 }
 
 void update_fuel_pump(
     Fuel_pump* pump, 
-    bool power, 
-    bool turn_on_cmd,
-    bool turn_off_cmd)
+    bool power)
 {
+    // Включаем насос, клапан и датчик
     pump->power = power;
+    pump->fuel_sov.power = power;
+    pump->fuel_sov.sensor.power = power;
     // Если нет питания или была команда выключения, насос отключается, клапан подачи топлива 
     // закрывается (если есть питание и не заклинил)
-    if (!pump->power || turn_off_cmd)
+    if (!pump->power || pump->turn_off_cmd)
     {
         if (pump->fuel_sov.power && !pump->fuel_sov.fault)
             pump->fuel_sov.open = 0;
@@ -390,23 +409,31 @@ void update_fuel_pump(
         pump->M  = 0;
     }
     // Иначе, если пришла команда включения, насос включается
-    else if (turn_on_cmd)
+    else if (pump->turn_on_cmd)
     {
         // Пытаемся открыть клапан подачи топлива
         if (pump->fuel_sov.power && !pump->fuel_sov.fault)
             pump->fuel_sov.open = 1;
-        // Если не смогли, то не включаем насос
+        // Если смогли, то включаем насос
         if (pump->fuel_sov.open)
         {
             pump->on = 1;
             pump->M = pump->M_const;
         }
+        // Иначе не включаем
+        else
+        {
+            pump->on = 0;
+            pump->M = 0;
+        }
     }
+    pump->turn_on_cmd  = 0;
+    pump->turn_off_cmd = 0;
 
     // Обновляем значение датчика положения
     update_discrete_sensor(&(pump->fuel_sov.sensor), pump->fuel_sov.open);
     // Обновляем значение датчика давления топлива (если неполадка, то давления нет)
-    if (!pump->fuel_sov.fault && pump->on)
+    if (!pump->fault && !(pump->fuel_sov.fault && !pump->fuel_sov.open) && pump->on)
         update_discrete_sensor(&(pump->P_fuel), 1);
     else
         update_discrete_sensor(&(pump->P_fuel), 0);
@@ -414,11 +441,7 @@ void update_fuel_pump(
 
 void update_pneumatic_system(
     Pneumatic_system* psys,
-    bool asv_open, 
-    int height, 
-    bool bsv_open, 
-    bool fcv_pos, 
-    bool mpu_xbleed_pos,
+    int height,
     Compressor* comp)
 {
     // Обновляем датчики атмосферной температуры и давления
@@ -427,12 +450,18 @@ void update_pneumatic_system(
 
     // Если есть питание и клапан забора атмосферного воздуха не заклинил, его можно переместить
     if (psys->asv.power && !psys->asv.fault)
-        psys->asv.open = asv_open;
+        if(psys->asv.open_cmd)
+            psys->asv.open = 1;
+        else if(psys->asv.close_cmd)
+            psys->asv.open = 0;
     update_discrete_sensor(&(psys->asv), psys->asv.open);
-   
+
     // Аналогично с входным клапаном пневмосистемы
     if (psys->bsv.power && !psys->bsv.fault)
-        psys->bsv.open = bsv_open;
+        if (psys->bsv.open_cmd)
+            psys->bsv.open = 1;
+        else if (psys->bsv.close_cmd)
+            psys->bsv.open = 0;
     update_discrete_sensor(&(psys->bsv), psys->bsv.open);
 
     // Обновляем параметры воздуха на входе в пневмосистему
@@ -441,20 +470,145 @@ void update_pneumatic_system(
         update_digital_sensor(&(psys->P_duct), 0);
     else
         update_digital_sensor(&(psys->P_duct), psys->P2.value - psys->P_loss);
-    update_digital_sensor(&(psys->T_duct), 
+    update_digital_sensor(&(psys->T_duct),
         psys->T2.value + (comp->T3.value - psys->T2.value) * psys->k_T);
 
     // Аналогичное управление перекрестными клапанами
     if (psys->fcv.power && !psys->fcv.fault)
-        psys->fcv.open = fcv_pos;
+        if (psys->fcv.open_cmd)
+            psys->fcv.open = 1;
+        else if (psys->fcv.close_cmd)
+            psys->fcv.open = 0;
     update_discrete_sensor(&(psys->fcv), psys->fcv.open);
     if (psys->mpu_xbleed.power && !psys->mpu_xbleed.fault)
-        psys->mpu_xbleed.open = fcv_pos;
+        if (psys->mpu_xbleed.open_cmd)
+            psys->mpu_xbleed.open = 1;
+        else if (psys->mpu_xbleed.close_cmd)
+            psys->mpu_xbleed.open = 0;
     update_discrete_sensor(&(psys->mpu_xbleed), psys->mpu_xbleed.open);
+
+    // Сбрасываем команды
+    psys->asv.open_cmd = 0;
+    psys->asv.close_cmd = 0;
+    psys->bsv.open_cmd = 0;
+    psys->bsv.close_cmd = 0;
+    psys->fcv.open_cmd = 0;
+    psys->fcv.close_cmd = 0;
+    psys->mpu_xbleed.open_cmd = 0;
+    psys->mpu_xbleed.close_cmd = 0;
+}
+
+void update_APU(APU* apu, bool power, int height)
+{
+    update_starter(&(apu->start), &(apu->rotor));
+    update_PID(&(apu->pid), &(apu->rotor));
+    update_gas_generator(&(apu->ggen), &(apu->pid), &(apu->rotor), &(apu->pump));
+    update_rotor(
+        &(apu->rotor), &(apu->start), &(apu->ggen), 
+        &(apu->comp), &(apu->fan), &(apu->gen), &(apu->pump), &(apu->psys.T2));
+    update_compressor(&(apu->comp), &(apu->rotor), &(apu->psys));
+    update_cooling_fan(&(apu->fan), &(apu->rotor));
+    update_generator(&(apu->gen), &(apu->rotor));
+    update_fuel_pump(&(apu->pump), power);
+    update_pneumatic_system(&(apu->psys), height, &(apu->comp));
 }
 
 
-void rotor_set_target_N(Rotor* rotor, double N_target)
+void copy_valve(Valve* original, Valve* copy)
 {
-    rotor->N_target = N_target;
+    copy->power = original->power;
+    copy->fault = original->fault;
+    copy->open = original->open;
+    copy->open_cmd = original->open_cmd;
+    copy->close_cmd = original->close_cmd;
+    copy->sensor.power = original->sensor.power;
+    copy->sensor.fault = original->sensor.fault;
+    copy->sensor.value = original->sensor.value;
+}
+
+void copy_APU(APU* original, APU* copy)
+{
+    copy->start.power = original->start.power;
+    copy->start.M = original->start.M;
+
+    copy->pid.fuel_feed = original->pid.fuel_feed;
+
+    copy->ggen.ignition = original->ggen.ignition;
+    copy->ggen.ignited = original->ggen.ignited;
+    copy->ggen.flame_sensor.power = original->ggen.flame_sensor.power;
+    copy->ggen.flame_sensor.fault = original->ggen.flame_sensor.fault;
+    copy->ggen.flame_sensor.value = original->ggen.flame_sensor.value;
+    copy->ggen.fuel_cmd = original->ggen.fuel_cmd;
+    copy->ggen.fuel = original->ggen.fuel;
+    copy->ggen.M = original->ggen.M;
+
+    copy->rotor.N = original->rotor.N;
+    copy->rotor.N_target = original->rotor.N_target;
+    copy->rotor.N1_0.power = original->rotor.N1_0.power;
+    copy->rotor.N1_0.fault = original->rotor.N1_0.fault;
+    copy->rotor.N1_0.value = original->rotor.N1_0.value;
+    copy->rotor.N1_1.power = original->rotor.N1_1.power;
+    copy->rotor.N1_1.fault = original->rotor.N1_1.fault;
+    copy->rotor.N1_1.value = original->rotor.N1_1.value;
+    copy->rotor.EGT = original->rotor.EGT;
+    copy->rotor.EGT_A0.power = original->rotor.EGT_A0.power;
+    copy->rotor.EGT_A0.fault = original->rotor.EGT_A0.fault;
+    copy->rotor.EGT_A0.value = original->rotor.EGT_A0.value;
+    copy->rotor.EGT_A1.power = original->rotor.EGT_A1.power;
+    copy->rotor.EGT_A1.fault = original->rotor.EGT_A1.fault;
+    copy->rotor.EGT_A1.value = original->rotor.EGT_A1.value;
+    copy->rotor.EGT_B0.power = original->rotor.EGT_B0.power;
+    copy->rotor.EGT_B0.fault = original->rotor.EGT_B0.fault;
+    copy->rotor.EGT_B0.value = original->rotor.EGT_B0.value;
+    copy->rotor.EGT_B1.power = original->rotor.EGT_B1.power;
+    copy->rotor.EGT_B1.fault = original->rotor.EGT_B1.fault;
+    copy->rotor.EGT_B1.value = original->rotor.EGT_B1.value;
+
+    copy->comp.bleed = original->comp.bleed;
+    copy->comp.M = original->comp.M;
+    copy->comp.P = original->comp.P;
+    copy->comp.T = original->comp.T;
+    copy->comp.P3.power = original->comp.P3.power;
+    copy->comp.P3.fault = original->comp.P3.fault;
+    copy->comp.P3.value = original->comp.P3.value;
+    copy->comp.T3.power = original->comp.T3.power;
+    copy->comp.T3.fault = original->comp.T3.fault;
+    copy->comp.T3.value = original->comp.T3.value;
+
+    copy->fan.fault = original->fan.fault;
+    copy->fan.N = original->fan.N;
+    copy->fan.M = original->fan.M;
+
+    copy->gen.on = original->gen.on;
+    copy->gen.M = original->gen.M;
+    copy->gen.NGC.power = original->gen.NGC.power;
+    copy->gen.NGC.fault = original->gen.NGC.fault;
+    copy->gen.NGC.value = original->gen.NGC.value;
+
+    copy->pump.power = original->pump.power;
+    copy->pump.turn_on_cmd = original->pump.turn_on_cmd;
+    copy->pump.turn_off_cmd = original->pump.turn_off_cmd;
+    copy->pump.on = original->pump.on;
+    copy->pump.M = original->pump.M;
+    copy_valve(&(original->pump.fuel_sov), &(copy->pump.fuel_sov));
+    copy->pump.P_fuel.power = original->pump.P_fuel.power;
+    copy->pump.P_fuel.fault = original->pump.P_fuel.fault;
+    copy->pump.P_fuel.value = original->pump.P_fuel.value;
+
+    copy_valve(&(original->psys.asv), &(copy->psys.asv));
+    copy_valve(&(original->psys.bsv), &(copy->psys.bsv));
+    copy_valve(&(original->psys.fcv), &(copy->psys.fcv));
+    copy_valve(&(original->psys.mpu_xbleed), &(copy->psys.mpu_xbleed));
+    copy->psys.P2.power = original->psys.P2.power;
+    copy->psys.P2.fault = original->psys.P2.fault;
+    copy->psys.P2.value = original->psys.P2.value;
+    copy->psys.T2.power = original->psys.T2.power;
+    copy->psys.T2.fault = original->psys.T2.fault;
+    copy->psys.T2.value = original->psys.T2.value;
+    copy->psys.P_duct.power = original->psys.P_duct.power;
+    copy->psys.P_duct.fault = original->psys.P_duct.fault;
+    copy->psys.P_duct.value = original->psys.P_duct.value;
+    copy->psys.T_duct.power = original->psys.T_duct.power;
+    copy->psys.T_duct.fault = original->psys.T_duct.fault;
+    copy->psys.T_duct.value = original->psys.T_duct.value;
 }

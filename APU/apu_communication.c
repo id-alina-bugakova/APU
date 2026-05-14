@@ -35,6 +35,9 @@ void init_responses(Responses* rsps)
     rsps->rcs.apu_fault             = 0;
     rsps->rcs.critical_fault        = 0;
     rsps->rcs.start                 = 0;
+    rsps->rcs.stop                  = 0;
+    rsps->rcs.avail                 = 0;
+    rsps->rcs.auto_shutdown         = 0;
     rsps->rcs.N1                    = 0.0;
     rsps->rcs.EGT                   = ATMOSPHERIC_TEMP;
 }
@@ -42,11 +45,15 @@ void init_responses(Responses* rsps)
 void init_actions(Actions* acts)
 {
     acts->turn_on_cmd               = 0;
+    acts->stop_testing              = 0;
+    acts->abort_start               = 0;
+    acts->pump_on                   = 0;
     acts->ignite                    = 0;
     acts->set_N                     = 0;
     acts->N_target                  = 0;
-    acts->update_air_demand         = 0;
     acts->open_asv                  = 0;
+    acts->close_asv                 = 0;
+    acts->update_air_demand         = 0;
     acts->open_bsv                  = 0;
     acts->close_bsv                 = 0;
     acts->switch_fcv_to_acs         = 0;
@@ -55,6 +62,19 @@ void init_actions(Actions* acts)
     acts->switch_xbleed_to_right    = 0;
     acts->update_gen_demand         = 0;
     acts->gen_demand                = 0;
+    acts->mpu_start_cutoff_done     = 0;
+    acts->turn_off_cmd              = 0;
+}
+
+void init_actions_manual(Actions_manual* actm)
+{
+    actm->power             = 0;
+    actm->test              = 0;
+    actm->reset             = 0;
+    actm->start             = 0;
+    actm->bleed             = 0;
+    actm->gen               = 0;
+    actm->mpu_start         = 0;
 }
 
 void init_data(Data* data)
@@ -74,6 +94,7 @@ void init_data(Data* data)
     data->demanded_fuel         = 0;
     data->last_demanded_fuel    = 0;
     data->ignited               = 0;
+    data->last_ignited          = 0;
     data->cooling               = 0;
     data->last_cooldown_start   = 0;
 }
@@ -85,3 +106,23 @@ void init_physical(Physical* phys)
     phys->enough_pressure = 0;
 }
 
+void copy_responses(Responses* original, Responses* copy)
+{
+    copy->eps.power_avail = original->eps.power_avail;
+    copy->fs.fuel_demand = original->fs.fuel_demand;
+    copy->air_cs.apu_bleed_avail = original->air_cs.apu_bleed_avail;
+    copy->mpu.apu_bleed_avail = original->mpu.apu_bleed_avail;
+    copy->mpu.apu_bleed_valve_stat = original->mpu.apu_bleed_valve_stat;
+    copy->mpu.crossbleed_valve_stat = original->mpu.crossbleed_valve_stat;
+    copy->mpu.eng_bleed_valve_stat = original->mpu.eng_bleed_valve_stat;
+    copy->mpu.apu_bleed_pres = original->mpu.apu_bleed_pres;
+    copy->rcs.power_on = original->rcs.power_on;
+    copy->rcs.apu_fault = original->rcs.apu_fault;
+    copy->rcs.critical_fault = original->rcs.critical_fault;
+    copy->rcs.start = original->rcs.start;
+    copy->rcs.stop = original->rcs.stop;
+    copy->rcs.avail = original->rcs.avail;
+    copy->rcs.auto_shutdown = original->rcs.auto_shutdown;
+    copy->rcs.N1 = original->rcs.N1;
+    copy->rcs.EGT = original->rcs.EGT;
+}

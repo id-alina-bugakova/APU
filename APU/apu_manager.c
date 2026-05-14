@@ -1,9 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#define INFINITE_RUN 0
 #define T_MODELING 310
 #define N_STEPS (1/H * T_MODELING)
-#define SLEEP_TIME 10 
+#define SLEEP_TIME 2  //2 
 
 #include <windows.h>
 #include <conio.h>
@@ -15,35 +14,18 @@
 #include "apu_components.h"
 #include "apu_controller.h"
 #include "apu_outer.h"
+#include "apu_driver.h"
+#include "apu_interface.h"
+
 
 void manager_cyclic()
 {
-    Starter start;
-    PID pid;
-    Gas_generator ggen;
-    Rotor rotor;
-    Compressor comp;
-    Cooling_fan fan;
-    Generator gen;
-    Fuel_pump pump;
-    Pneumatic_system psys;
-
-    init_starter(&start);
-    init_PID(&pid);
-    init_gas_generator(&ggen);
-    init_rotor(&rotor);
-    init_compressor(&comp);
-    init_cooling_fan(&fan);
-    init_generator(&gen);
-    init_fuel_pump(&pump);
-    init_pneumatic_system(&psys);
+    APU apu;
+    init_APU(&apu);
 
     ECU c0, c1;
-
     init_controller(&c0, 0, true);
     init_controller(&c1, 1, false);
-    c0.power = ON;
-    c1.power = ON;
 
     State state = STATE_OFF;
     Event last_event = EVENT_NONE;
@@ -51,56 +33,110 @@ void manager_cyclic()
     Messages msgs;
     Responses rsps;
     Actions acts;
+    Actions_manual actm;
     Data data;
     Physical phys;
+    init_messages(&msgs);
+    init_responses(&rsps);
+    init_actions(&acts);
+    init_actions_manual(&actm);
+    init_data(&data);
+    init_physical(&phys);
 
-    
+    Output out;
+    File_output fout;
+    Message_buffer mb;
+    init_output(&out);
+    init_file_output(&fout);
+    init_buffer(&mb);
 
-    printf("==================================================\n");
-    printf("  Press c - input command\n");
-    printf("  Press s - start/stop simulation\n");
-    printf("==================================================\n\n");
+    // Предыдущие состояния структур для вывода
+    APU prev_apu;
+    init_APU(&prev_apu);
+    State prev_state = STATE_OFF;
+    Responses prev_rsps;
+    init_responses(&prev_rsps);
+    int prev_height = 0;
+
+    printf("============================================================\n");
+    printf("  - Press S - select scenario\n");
+    printf("  - Press M - start in manual mode (on start only)\n");
+    printf("============================================================\n");
 
     char key;
 
     key = _getch();
-    while(key != 's')
+    while(key != 'S' && key != 'M')
         key = _getch();
+    
+    bool manual_mode = (key == 'M');
 
-    for (int i = 1; (INFINITE_RUN? (i > 0) : (i <= N_STEPS)); i++)
+    if (manual_mode)
+    {
+        printf(" === MANUAL MODE ===\n");
+        Sleep(250);
+    }
+    else
+    {
+        printf("  Select scenario:\n");
+    }
+
+    for (int i = 1; 1; i++)
     {
         fflush(stdout);
+        printer(
+            &out, &mb, &rsps, &prev_rsps, 
+            i, phys.height, &prev_height, state, &prev_state, 
+            &apu, &prev_apu);
         if (_kbhit())
         {
             key = _getch();
-            if (key == 's')
-                system("pause");
+            handle_key_press(key, manual_mode, &out, &mb, state, (!c0.power && !c1.power), &actm);
         }
 
         // Собираем сообщения
-        by_eps(&(msgs.eps));
-        by_fs(&(msgs.fs));
-        by_air_cs(&(msgs.air_cs));
-        by_mpu(&(msgs.mpu));
-        by_fps(&(msgs.fps));
-        by_rcs(&(msgs.rcs));
-        by_auto_cs(&(msgs.auto_cs));
+        by_eps(&(msgs.eps), &(rsps.eps), &(apu.gen), (i == 1), 0, actm.gen);
+        by_fs(&(msgs.fs), (i == 1), 0);
+        by_air_cs(&(msgs.air_cs), &(rsps.air_cs), (i == 1), actm.bleed, 0);
+        by_mpu(&(msgs.mpu), &(rsps.mpu), (i == 1), actm.mpu_start, 0);
+        by_fps(&(msgs.fps), 0);
+        by_rcs(&(msgs.rcs), &(rsps.rcs), state, (i == 1), manual_mode, actm.power, actm.test, 1);
+        by_auto_cs(&(msgs.auto_cs), 0);
         // Получаем физику
-        get_physical(&phys);
+        get_physical(&phys, 0, 1, 1);
+
+        // Выполняем действия вручную, если ручной режим
+        if(manual_mode)
+            perform_manual_actions(
+                &actm, &msgs, state,
+                &c0, &c1,
+                &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
+                &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys));
 
         // Обновляем контроллеры
         update_controller(
-            &c0, &c1, i, state, &last_event, 
-            &start, &ggen, &rotor, &comp, &fan, &gen, &pump, &psys, 
-            &msgs, &rsps, &acts, &data, &phys);
+            &c0, &c1, i, &state, 
+            &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
+            &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
+            &msgs, &rsps, &acts, &data, &phys, &mb);
         update_controller(
-            &c1, &c0, i, state, &last_event,
-            &start, &ggen, &rotor, &comp, &fan, &gen, &pump, &psys,
-            &msgs, &rsps, &acts, &data, &phys);
+            &c1, &c0, i, &state,
+            &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
+            &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
+            &msgs, &rsps, &acts, &data, &phys, &mb);
 
         // Передаем ответы
         
         // Выполняем действия
+        perform_actions(
+            &acts, &msgs, &actm, 
+            &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.gen), &(apu.pump), & (apu.psys));
+
+        // Обновляем агрегаты
+        update_APU(&apu, c0.power, phys.height);
+
+        // Логируем состояния агрегатов ВСУ
+        write_files(&fout, &apu);
 
         Sleep(SLEEP_TIME);
     }

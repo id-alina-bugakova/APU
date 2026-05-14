@@ -100,6 +100,7 @@ void update_digital_sensor(Digital_sensor* sensor, double value)
 	sensor->value = sensor->buffer[0];
 	for (int i = 1; i < SENSOR_BUFFER_SIZE; i++)
 		sensor->buffer[i - 1] = sensor->buffer[i];
+	sensor->buffer[SENSOR_BUFFER_SIZE - 1] = value;
 }
 
 void update_T2(Digital_sensor* T2, int height)
@@ -117,4 +118,5 @@ void update_discrete_sensor(Discrete_sensor* sensor, bool value)
 	sensor->value = sensor->buffer[0];
 	for (int i = 1; i < SENSOR_BUFFER_SIZE; i++)
 		sensor->buffer[i - 1] = sensor->buffer[i];
+	sensor->buffer[SENSOR_BUFFER_SIZE - 1] = value;
 }

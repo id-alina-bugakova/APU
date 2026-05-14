@@ -26,6 +26,8 @@
 typedef struct
 {
     bool power;                         ///< Признак питания (0 - нет, 1 - есть)
+    bool open_cmd;                      ///< Команда открытия клапана
+    bool close_cmd;                     ///< Команда закрытия клапана
     bool open;                          ///< Признак положения (0 - закрыт, 1 - открыт)
     bool fault;                         ///< Признак заклинивания (0 - норма, 1 - заклинил)
     Discrete_sensor sensor;             ///< Датчик положения клапана
@@ -47,6 +49,7 @@ typedef struct
     double M;                           ///< Момент, создаваемый стартером, Н*м
     double M_max;                       ///< Максимальный момент, который может создать стартер
     double turnoff_N;                   ///< N, при котором стартер выключается
+    bool turn_off_cmd;                  ///< Команда выключения
 } Starter;
 
 /* @brief ПИД-регулятор
@@ -90,7 +93,8 @@ typedef struct
 */
 typedef struct
 {
-    bool ignition;                      ///< Признак горения топлива (0 - нет, 1 - есть)
+    bool ignition;                      ///< Признак горения топлива в текущий такт
+    bool ignited;                       ///< Признак горения топлива в прошлый такт
     Discrete_sensor flame_sensor;       ///< Датчик факела в камере сгорания
     double fuel_N;                      ///< N начала подачи топлива в турбину
     double fuel_cmd;                    ///< Итоговая команда на подачу топлива (от 0 до 1)
@@ -195,6 +199,7 @@ typedef struct
 {
     bool on;                            ///< Признак включения (0 - выключен, 1 - включен)
     double N_turnon;                    ///< Обороты включения
+    double N_own;                       ///< Собственные обороты генераора (постоянные)
     double M;                           ///< Потребляемый момент в текущий такт
     double M_const;                     ///< Потребляемый момент при работе (постоянный)
     Digital_sensor NGC;                 ///< Датчик частоты вращения генератора
@@ -207,6 +212,9 @@ typedef struct
 typedef struct
 {
     bool power;                         ///< Признак питания (0 - нет, 1 - есть)
+    bool fault;                         ///< Признак отказа (0 - норма, 1 - отказ)
+    bool turn_on_cmd;                   ///< Команда включения
+    bool turn_off_cmd;                  ///< Команда выключения
     Valve fuel_sov;                     ///< Клапан отсечки топлива
     bool on;                            ///< Признак включения (0 - выключен, 1 - включен)
     double M;                           ///< Потребляемый момент в текущий такт
@@ -231,6 +239,21 @@ typedef struct
     Valve fcv;                          ///< Перекрестный клапан СКВ/МСУ
     Valve mpu_xbleed;                   ///< Перекрестный клапан двигателей МСУ
 } Pneumatic_system;
+
+/* @brief Общая структура компонентов ВСУ
+*/
+typedef struct
+{
+    Starter start;
+    PID pid;
+    Gas_generator ggen;
+    Rotor rotor;
+    Compressor comp;
+    Cooling_fan fan;
+    Generator gen;
+    Fuel_pump pump;
+    Pneumatic_system psys;
+} APU;
 
 
 /* @brief Функция инициализации клапана (сенсор клапана инициализируется отдельно!)
@@ -293,14 +316,19 @@ void init_fuel_pump(Fuel_pump* pump);
 */
 void init_pneumatic_system(Pneumatic_system* psys);
 
+/* @brief Функция инициализации ВСУ
+*
+*  @param Fuel_pump* pump : инициализируемая ВСУ
+*/
+void init_APU(APU* apu);
+
 
 /* @brief Функция обновления электростартера (1 раз в такт)
 * 
 *  @param Starter* starter : указатель на стартер
-*  @param bool turn_on_cmd : команда включения (начало последовательности запуска)
 *  @param Rotor* rotor : указатель на ротор, который приводится в движение
 */
-void update_starter(Starter* starter, bool turn_on_cmd, Rotor* rotor);
+void update_starter(Starter* starter, Rotor* rotor);
 
 /* @brief Функция обновления ПИД-регулятора (1 раз в такт)
 * 
@@ -319,7 +347,6 @@ void update_PID(PID* pid, Rotor* rotor);
 */
 void update_gas_generator(
     Gas_generator* ggen,
-    bool ignition,
     PID* pid,
     Rotor* rotor,
     Fuel_pump* pump);
@@ -368,20 +395,14 @@ void update_cooling_fan(Cooling_fan* fan, Rotor* rotor);
 *  @param bool turn_off_cmd : команда выключения генератора (GEN OFF)
 *  @param Rotor* rotor : указатель на ротор для получения оборотов
 */
-void update_generator(Generator* gen, bool turn_on_cmd, bool turn_off_cmd, Rotor* rotor);
+void update_generator(Generator* gen, Rotor* rotor);
 
 /* @brief Функция обновления топливного насоса (1 раз в такт)
 * 
-*  @param Fuel_pump* pump : казатель на насос
+*  @param Fuel_pump* pump : указатель на насос
 *  @param bool power : признак питания насоса
-*  @param bool turn_on_cmd : команда включения насоса
-*  @param bool turn_off_cmd : команда выключения насоса
 */
-void update_fuel_pump(
-    Fuel_pump* pump,
-    bool power,
-    bool turn_on_cmd,
-    bool turn_off_cmd);
+void update_fuel_pump(Fuel_pump* pump, bool power);
 
 /* @brief Функция обновления пневмосистемы (1 раз в такт)
 * 
@@ -394,17 +415,27 @@ void update_fuel_pump(
 */
 void update_pneumatic_system(
     Pneumatic_system* psys,
-    bool asv_open,
     int height,
-    bool bsv_open,
-    bool fcv_pos,
-    bool mpu_xbleed_pos,
     Compressor* comp);
 
-
-/* @brief Функция изменения целевых оборотов ротора
-*  
-*  @param Rotor* rotor : указатель на ротор
-*  @param double N_target : целевое число оборотов в об./мин.
+/* @brief Функция обновления всех компонентов ВСУ (1 раз в такт)
+*
+*  @param APU* apu : указатель на ВСУ
+*  @param bool power : признак питания установки
+*  @param int height : высота полета
 */
-void rotor_set_target_N(Rotor* rotor, double N_target);
+void update_APU(APU* apu, bool power, int height);
+
+/* @brief Функция копирования переменных состояния клапана
+*
+*  @param Valve* original : откуда копируем
+*  @param Valve* copy : куда копируем
+*/
+void copy_valve(Valve* original, Valve* copy);
+
+/* @brief Функция копирования переменных состояния ВСУ
+*  
+*  @param APU* original : откуда копируем
+*  @param APU* copy : куда копируем
+*/
+void copy_APU(APU* original, APU* copy);
