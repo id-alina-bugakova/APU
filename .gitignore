@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/APU/output/%SystemDrive%/ProgramData/Microsoft/Windows/Caches
+/APU/output/.idea/inspectionProfiles
+/APU/output/.idea
+*.data
