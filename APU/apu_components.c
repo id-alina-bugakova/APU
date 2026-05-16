@@ -127,7 +127,7 @@ void init_cooling_fan(Cooling_fan* fan)
 void init_generator(Generator* gen)
 {
     gen->on       = 0;
-    gen->N_turnon = 31000;
+    gen->N_turnon = 30000;
     gen->N_own    = 12000;
     gen->M        = 0;
     gen->M_const  = 15;

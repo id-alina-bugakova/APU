@@ -218,6 +218,7 @@ typedef struct {
     bool flame_was_on;                  ///< Признак того, что в камере сгорания появлялся факел
     uint32_t last_flame_out;            ///< Последнее время погасания факела
     bool last_flame_out_updated;        ///< Последнее время погасания факела
+    bool just_started_working;          ///< ВСУ только что вышла на рабочие обороты (для генератора)
     bool cooling;                       ///< Признак охлаждения
     uint32_t last_cooldown_start;       ///< Время начала последнего охлаждения
 } Data;
@@ -225,9 +226,9 @@ typedef struct {
 /* @brief Физические параметры
 */
 typedef struct {
-    bool auto_start;                    ///< Автоматический запуск
     bool fire;                          ///< Пожар в отсеке
     unsigned int height;                ///< Текущая высота
+    bool auto_start;                    ///< Автоматический запуск
     bool ignited;                       ///< Признак наличия зажигания
     bool enough_pressure;               ///< Достаточно ли давления для СКВ/МСУ
 } Physical;

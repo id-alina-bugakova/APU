@@ -56,7 +56,9 @@ void manager_cyclic()
     init_buffer(&mb);
 
     Problem_notifications ntfs;
+    Emergency_notifications enfs;
     init_problem_notifications(&ntfs);
+    init_emergency_notification(&enfs);
 
     // Предыдущие состояния для вывода
     APU prev_apu;
@@ -137,12 +139,12 @@ void manager_cyclic()
             &c0, &c1, i, &state, 
             &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
             &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
-            &msgs, &rsps, &acts, &data, &phys, &ntfs, &mb, &fout);
+            &msgs, &rsps, &acts, &data, &phys, &ntfs, &enfs, &mb, &fout);
         update_controller(
             &c1, &c0, i, &state,
             &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
             &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
-            &msgs, &rsps, &acts, &data, &phys, &ntfs, &mb, &fout);
+            &msgs, &rsps, &acts, &data, &phys, &ntfs, &enfs, &mb, &fout);
 
         // Обновляем watchdog
         update_watchdog(&wd, i, &c0, &c1, &acts, &mb, &fout);

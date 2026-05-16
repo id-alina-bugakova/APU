@@ -102,6 +102,7 @@ void init_data(Data* data)
     data->flame_was_on              = 0;
     data->last_flame_out            = 0;
     data->last_flame_out_updated    = 0;
+    data->just_started_working      = 0;
     data->cooling                   = 0;
     data->last_cooldown_start       = 0;
 }

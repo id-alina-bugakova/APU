@@ -252,7 +252,7 @@ void printer(
         printf("%s                    ", states[state]);
     }
     // Высота
-    if (*prev_height != height)
+    if (*prev_height != height || !out->setup_done)
     {
         move_to(POS_X_GENERAL_COL, POS_Y_HEIGHT);
         printf(HEIGHT_FORMAT, height);
@@ -988,11 +988,10 @@ void scenario_menu()
     printf("              control, watchdog shutdown\n");
     printf("    Press 6 - manual run in the air, supplies generator,\n");
     printf("              then a fire occurs\n");
-    printf("    Press 7 - auto start in the air to respart MPU, success\n");
+    printf("    Press 7 - auto start in the air to restart MPU, success\n");
     printf("    Press 8 - emergency start in the air to restart MPU,\n");
-    printf("              start failure, then failure to restart MPU;\n");
-    printf("              auto start on lower height, MPU restart\n");
-    printf("              success\n");
+    printf("              failure to restart MPU; auto start on lower \n");
+    printf("              height, MPU restart successful\n");
     printf("============================================================\n");
     printf("  - Press M - start in manual mode instead\n");
     printf("============================================================\n");
@@ -1354,14 +1353,15 @@ void handle_key_press(
         else if (key == 'm')
         {
             if (state == STATE_IDLE_RUN || state == STATE_GEN ||
-                state == STATE_BLEED || state == STATE_LOAD)
+                state == STATE_BLEED || state == STATE_LOAD ||
+                state == STATE_IDLE_RUN_LIMITED || state == STATE_GEN_LIMITED)
             {
                 print_to_buffer(mb, " === MPU ON ===\n", fout);
                 actm->mpu_start = 1;
                 actm->bleed = 0;
                 actm->gen = 0;
             }
-            else if (state == STATE_MPU_START)
+            else if (state == STATE_MPU_START || state == STATE_MPU_START_LIMITED)
             {
                 print_to_buffer(mb, " === MPU OFF ===\n", fout);
                 actm->mpu_start = 0;

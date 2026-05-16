@@ -31,6 +31,12 @@ typedef struct {
     unsigned long long tolerance;       ///< Время, после которого контроллер считается "упавшим"
 } ECU;
 
+typedef struct {
+    bool fire;
+    bool ovtime;
+    bool ovspeed;
+    bool ovheat;
+} Emergency_notifications;
 
 /* @brief Функция инициализации контроллера
 * 
@@ -40,69 +46,11 @@ typedef struct {
 */
 void init_controller(ECU* contr, int id, bool main_channel);
 
-/* @brief Вычисление EGT на основе данных со всех датчиков EGT 
-* 
-*  @param Rotor* rotor : ротор, с датчиков которого снимаем показания 
-*/
-double calculate_EGT(Rotor* rotor);
-
-/* @brief Вычисление оборотов на основе данных со всех датчиков частоты вращения  ротора
+/* @brief Функция инициализации уведомлений об аварийных ситуациях
 *
-*  @param Rotor* rotor : ротор, с датчиков которого снимаем показания
+*  @param Emergency_notifications* enfs : инициализируемые уведомления
 */
-double calculate_N(Rotor* rotor);
-
-/* @brief Проверка перегрева или превышения оборотов ротором
-*
-*  @param uint32_t cur_time : текущее время для определения длительности состояния
-*  @param Rotor* rotor : указатель на ротор
-*  @param Responses* rsps : структура ответа, в которую записываем показатели ротора
-*  @param Data* data : структура, в которую сохраняем данные о состоянии ротора
-*/
-void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data);
-
-/* @brief Проверка наличия аварийных состояний (нормальный запуск)
-* 
-*  @param ECU* c1 : указатель на проверяющий канал контроллера
-*  @param uint32_t cur_time : текущее время для определения длительности состояния
-*  @param Event* last_event : указатель на последнее событие для записи
-*  @param Rotor* rotor : указатель на ротор
-*  @param Gas_generator* ggen : указатель на газогенератор
-*  @param Responses* rsps : структура ответа (для отсечки топлива)
-*  @param Data* data : структура, в которую сохраняем данные о состоянии
-*/
-void check_for_emergencies(
-    ECU* c1, 
-    uint32_t cur_time, 
-    Event* last_event, 
-    Rotor* rotor,
-    Gas_generator* ggen,
-    Responses* rsps, 
-    Data* data,
-    Message_buffer* mb,
-    File_output* fout);
-
-/* @brief Проверка наличия аварийных состояний (аварийный запуск)
-*
-*  @param ECU* c1 : указатель на проверяющий канал контроллера
-*  @param uint32_t cur_time : текущее время для определения длительности состояния
-*  @param Event* last_event : указатель на последнее событие для записи
-*  @param Rotor* rotor : указатель на ротор
-*  @param Gas_generator* ggen : указатель на газогенератор
-*  @param Responses* rsps : структура ответа (для отсечки топлива)
-*  @param Data* data : структура, в которую сохраняем данные о состоянии
-*/
-void check_for_emergencies_emergent(
-    ECU* c1,
-    uint32_t cur_time,
-    Event* last_event,
-    Rotor* rotor,
-    Gas_generator* ggen,
-    Messages* msgs,
-    Responses* rsps,
-    Data* data,
-    Message_buffer* mb,
-    File_output* fout);
+void init_emergency_notification(Emergency_notifications* enfs);
 
 /* @brief Функция обновления канала контроллера
 * 
@@ -143,5 +91,6 @@ void update_controller(
     Data* data,
     Physical* phys,
     Problem_notifications* ntfs,
+    Emergency_notifications* enfs,
     Message_buffer* mb,
     File_output* fout);
