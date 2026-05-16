@@ -2,7 +2,7 @@
 
 #define T_MODELING 310
 #define N_STEPS (1/H * T_MODELING)
-#define SLEEP_TIME 2  //2 
+#define SLEEP_TIME 1  //2 
 
 #include <windows.h>
 #include <conio.h>
@@ -10,18 +10,23 @@
 #include <string.h>
 
 #include "apu_defs.h"
+#include "apu_diagnostic.h"
 #include "apu_math.h"
 #include "apu_components.h"
 #include "apu_controller.h"
 #include "apu_outer.h"
 #include "apu_driver.h"
 #include "apu_interface.h"
+#include "apu_watchdog.h"
 
 
 void manager_cyclic()
 {
     APU apu;
     init_APU(&apu);
+
+    Watchdog wd;
+    init_watchdog(&wd);
 
     ECU c0, c1;
     init_controller(&c0, 0, true);
@@ -50,10 +55,15 @@ void manager_cyclic()
     init_file_output(&fout);
     init_buffer(&mb);
 
-    // Предыдущие состояния структур для вывода
+    Problem_notifications ntfs;
+    init_problem_notifications(&ntfs);
+
+    // Предыдущие состояния для вывода
     APU prev_apu;
     init_APU(&prev_apu);
     State prev_state = STATE_OFF;
+    bool c0_fault_prev = 0;
+    bool c1_fault_prev = 0;
     Responses prev_rsps;
     init_responses(&prev_rsps);
     int prev_height = 0;
@@ -70,16 +80,18 @@ void manager_cyclic()
         key = _getch();
     
     bool manual_mode = (key == 'M');
+    int scenario = -1;
 
     if (manual_mode)
     {
         printf(" === MANUAL MODE ===\n");
-        Sleep(250);
+        Sleep(500);
     }
     else
-    {
-        printf("  Select scenario:\n");
-    }
+        scenario = get_scenario();
+    // Если из выбора сценариев вернулись в ручной режим
+    if (scenario == -1)
+        manual_mode = ON;
 
     for (int i = 1; 1; i++)
     {
@@ -87,11 +99,15 @@ void manager_cyclic()
         printer(
             &out, &mb, &rsps, &prev_rsps, 
             i, phys.height, &prev_height, state, &prev_state, 
+            c0.fault, &c0_fault_prev, c1.fault, &c1_fault_prev,
             &apu, &prev_apu);
         if (_kbhit())
         {
             key = _getch();
-            handle_key_press(key, manual_mode, &out, &mb, state, (!c0.power && !c1.power), &actm);
+            handle_key_press(
+                key, manual_mode, &out, &fout, &mb, state, (!c0.power && !c1.power), 
+                &(c0.fault), &(c1.fault),
+                &apu, &phys, &actm);
         }
 
         // Собираем сообщения
@@ -103,12 +119,15 @@ void manager_cyclic()
         by_rcs(&(msgs.rcs), &(rsps.rcs), state, (i == 1), manual_mode, actm.power, actm.test, 1);
         by_auto_cs(&(msgs.auto_cs), 0);
         // Получаем физику
-        get_physical(&phys, 0, 1, 1);
+        if (manual_mode && i != 1)
+            get_physical(&phys, phys.auto_start, phys.height, phys.ignited, phys.enough_pressure);
+        else
+            get_physical(&phys, 0, 0, 1, 1);
 
         // Выполняем действия вручную, если ручной режим
         if(manual_mode)
             perform_manual_actions(
-                &actm, &msgs, state,
+                &actm, &phys, &msgs, &data, &ntfs, state,
                 &c0, &c1,
                 &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
                 &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys));
@@ -118,19 +137,22 @@ void manager_cyclic()
             &c0, &c1, i, &state, 
             &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
             &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
-            &msgs, &rsps, &acts, &data, &phys, &mb);
+            &msgs, &rsps, &acts, &data, &phys, &ntfs, &mb, &fout);
         update_controller(
             &c1, &c0, i, &state,
             &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
             &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
-            &msgs, &rsps, &acts, &data, &phys, &mb);
+            &msgs, &rsps, &acts, &data, &phys, &ntfs, &mb, &fout);
 
-        // Передаем ответы
+        // Обновляем watchdog
+        update_watchdog(&wd, i, &c0, &c1, &acts, &mb, &fout);
         
         // Выполняем действия
         perform_actions(
-            &acts, &msgs, &actm, 
-            &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.gen), &(apu.pump), & (apu.psys));
+            &acts, &msgs, &data, &actm, &phys,
+            &state, &c0, &c1,
+            &(apu.start), &(apu.pid), &(apu.ggen), &(apu.rotor),
+            &(apu.comp), &(apu.gen), &(apu.pump), &(apu.psys));
 
         // Обновляем агрегаты
         update_APU(&apu, c0.power, phys.height);

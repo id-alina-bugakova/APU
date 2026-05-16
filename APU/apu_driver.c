@@ -1,36 +1,51 @@
 #include "apu_driver.h"
+#include "apu_diagnostic.h"
 
-void reset_fault(
-    Messages* msgs,
+void toggle_components(
+    ECU* c0,
+    ECU* c1,
     Gas_generator* ggen,
     Rotor* rotor,
-    Cooling_fan* fan,
-    Generator* gen,
     Compressor* comp,
+    Generator* gen,
     Fuel_pump* pump,
-    Pneumatic_system* psys)
+    Pneumatic_system* psys,
+    bool value)
 {
-    msgs->fps.fire_sig = 0;
-    ggen->flame_sensor.fault = 0;
-    rotor->N1_0.fault = 0;          rotor->N1_1.fault = 0;
-    rotor->EGT_A0.fault = 0;        rotor->EGT_A1.fault = 0;
-    rotor->EGT_B0.fault = 0;        rotor->EGT_B1.fault = 0;
-    fan->fault = 0;
-    gen->NGC.fault = 0;
-    comp->P3.fault = 0;             comp->T3.fault = 0;
-    pump->fuel_sov.fault = 0;       pump->fuel_sov.sensor.fault = 0;
-    pump->P_fuel.fault = 0;
-    psys->asv.fault = 0;            psys->asv.sensor.fault = 0;
-    psys->P2.fault = 0;             psys->T2.fault = 0;
-    psys->bsv.fault = 0;            psys->bsv.sensor.fault = 0;
-    psys->P_duct.fault = 0;         psys->T_duct.fault = 0;
-    psys->fcv.fault = 0;            psys->fcv.sensor.fault = 0;
-    psys->mpu_xbleed.fault = 0;     psys->mpu_xbleed.sensor.fault = 0;
+    c0->power = value;
+    c1->power = value;
+    ggen->flame_sensor.power = value;
+    rotor->N1_0.power = value;
+    rotor->N1_1.power = value;
+    rotor->EGT_A0.power = value;
+    rotor->EGT_A1.power = value;
+    rotor->EGT_B0.power = value;
+    rotor->EGT_B1.power = value;
+    comp->P3.power = value;
+    comp->T3.power = value;
+    gen->NGC.power = value;
+    pump->fuel_sov.power = value;
+    pump->fuel_sov.sensor.power = value;
+    psys->asv.power = value;
+    psys->asv.sensor.power = value;
+    psys->bsv.power = value;
+    psys->bsv.sensor.power = value;
+    psys->fcv.power = value;
+    psys->fcv.sensor.power = value;
+    psys->mpu_xbleed.power = value;
+    psys->mpu_xbleed.sensor.power = value;
+    psys->P2.power = value;
+    psys->T2.power = value;
+    psys->P_duct.power = value;
+    psys->T_duct.power = value;
 }
 
 void perform_manual_actions(
     Actions_manual* actm,
+    Physical* phys,
     Messages* msgs,
+    Data* data,
+    Problem_notifications* ntfs,
     State state,
     ECU* c0,
     ECU* c1,
@@ -52,20 +67,23 @@ void perform_manual_actions(
 
     if (actm->reset)
     {
-        reset_fault(msgs, ggen, rotor, fan, gen, comp, pump, psys);
+        reset_fault(msgs, data, ntfs, ggen, rotor, fan, gen, comp, pump, psys);
         actm->reset = 0;
     }
 
-    if (actm->start && state == STATE_IDLE)
+    if ((actm->start || phys->auto_start) && state == STATE_IDLE)
     {
         msgs->rcs.start_cmd = 1;
         msgs->rcs.stop_cmd = 0;
     }
-    else if (!actm->start && (state == STATE_START ||
+    else if (!actm->start && !phys->auto_start &&
+        (state == STATE_START ||
         state == STATE_IDLE_RUN || state == STATE_IDLE_RUN_LIMITED))
     {
         msgs->rcs.start_cmd = 0;
         msgs->rcs.stop_cmd = 1;
+        phys->auto_start = 0;
+        msgs->auto_cs.auto_start = 0;
         start->turn_off_cmd = 1;
     }
 
@@ -88,21 +106,48 @@ void perform_manual_actions(
         msgs->mpu.eng_start = 0;
         msgs->mpu.eng_start_cutoff = 0;
     }
+
+
+    if (phys->fire)
+        msgs->fps.fire_sig = 1;
+
+    if (!phys->ignited)
+        ggen->ignition = OFF;
+
+    if (!phys->enough_pressure)
+        msgs->mpu.eng_start_cutoff;
 }
 
 void perform_actions(
     Actions* acts,
     Messages* msgs,
+    Data* data,
     Actions_manual* actm,
+    Physical* phys,
+    State* state,
+    ECU* c0,
+    ECU* c1,
     Starter* start,
+    PID* pid,
     Gas_generator* ggen,
     Rotor* rotor,
+    Compressor* comp,
     Generator* gen,
     Fuel_pump* pump,
     Pneumatic_system* psys)
 {
+    if (acts->power_on_cmd)
+    {
+        reset_messages(msgs);
+        init_data(data);
+        toggle_components(c0, c1, ggen, rotor, comp, gen, pump, psys, ON);
+    }
+
     if (acts->turn_on_cmd)
+    {
         start->power = ON;
+        init_PID(pid);
+    }
 
     if (acts->stop_testing)
     {
@@ -114,6 +159,9 @@ void perform_actions(
     {
         actm->start = 0;
         msgs->rcs.start_cmd = 0;
+        start->power = OFF;
+        ggen->ignition = OFF;
+        pump->on = 0;
     }
 
     if (acts->pump_on)
@@ -133,9 +181,15 @@ void perform_actions(
     if (acts->update_air_demand)
     {
         if (acts->open_bsv)
+        {
+            comp->bleed = 1;
             psys->bsv.open_cmd = 1;
+        }
         else if (acts->close_bsv)
+        {
+            comp->bleed = 0;
             psys->bsv.close_cmd = 1;
+        }
 
         if (acts->switch_fcv_to_acs)
             psys->fcv.open_cmd = 1;
@@ -156,4 +210,42 @@ void perform_actions(
 
     if (acts->turn_off_cmd)
         ggen->ignition = OFF;
+
+    if (acts->watchdog_shutdown || acts->emergency_shtdn || acts->power_off_cmd)
+    {
+        // Убираем команды на старт
+        msgs->auto_cs.auto_start = 0;
+        phys->auto_start = 0;
+        msgs->rcs.start_cmd = 0;
+        msgs->rcs.apu_power = OFF;
+        actm->power = OFF;
+        actm->start = 0;
+        // Закрываем клапаны, выключаем зажигание
+        if(psys->asv.power && !psys->asv.fault)
+            psys->asv.open = CLOSED;
+        if (psys->bsv.power && !psys->bsv.fault)
+            psys->bsv.open = CLOSED;
+        ggen->ignition = OFF;
+        // Все выключаем
+        toggle_components(c0, c1, ggen, rotor, comp, gen, pump, psys, OFF);
+    }
+
+    if (acts->watchdog_shutdown)
+        *state = STATE_OFF;
+
+    if (phys->auto_start)
+    {
+        // Выполняем включение всех агрегатов и сброс сообщений об отказах
+        if (actm->power == OFF)
+        {
+            actm->power = ON;
+            reset_messages(msgs);
+            init_data(data);
+        }
+        toggle_components(c0, c1, ggen, rotor, comp, gen, pump, psys, ON);
+        msgs->rcs.apu_power = ON;
+        msgs->auto_cs.auto_start = 1;
+        msgs->rcs.stop_cmd = 0;
+
+    }
 }

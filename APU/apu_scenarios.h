@@ -1,17 +1,38 @@
 #pragma once
 
-#define N_SCENARIOS 8
+#define N_SCENARIOS 9
 
-#include "apu_interface.h"
-#include "apu_controller.h"
+#include <stdbool.h>
+#include "apu_defs.h"
+
+typedef struct {
+    char key1;
+    char key2;
+    char key3;
+} Keys;
+
+typedef struct {
+    bool power;
+    bool test;
+    bool start_stop;
+    bool bleed;
+    bool gen;
+    bool mpu;
+    bool fire;
+    unsigned int height;
+    bool ignition;
+    bool enough_pres;
+    bool c0;
+    bool c1;
+    char faults;
+} Sc_commands;
 
 typedef struct {
     char path[N_SCENARIOS][STRING_LEN];
-    void (*func[N_SCENARIOS])(
-        Actions_manual* actm,
-        Messages* msgs,
-        State state,
-        ECU* c0,
-        ECU* c1,
-        APU* apu);
+    long pos;
+    bool finished;
 } Scenarios;
+
+void init_scenarios(Scenarios* scns);
+
+void start_scenario(int n, Scenarios* scns, Keys* k);

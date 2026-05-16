@@ -12,6 +12,7 @@
 #include "apu_components.h"
 #include "apu_communication.h"
 #include "apu_interface.h"
+#include "apu_diagnostic.h"
 
 #include "stdbool.h"
 
@@ -78,7 +79,8 @@ void check_for_emergencies(
     Gas_generator* ggen,
     Responses* rsps, 
     Data* data,
-    Message_buffer* mb);
+    Message_buffer* mb,
+    File_output* fout);
 
 /* @brief Проверка наличия аварийных состояний (аварийный запуск)
 *
@@ -99,7 +101,8 @@ void check_for_emergencies_emergent(
     Messages* msgs,
     Responses* rsps,
     Data* data,
-    Message_buffer* mb);
+    Message_buffer* mb,
+    File_output* fout);
 
 /* @brief Функция обновления канала контроллера
 * 
@@ -139,4 +142,6 @@ void update_controller(
     Actions* acts,
     Data* data,
     Physical* phys,
-    Message_buffer* mb);
+    Problem_notifications* ntfs,
+    Message_buffer* mb,
+    File_output* fout);

@@ -25,12 +25,12 @@
         "    HEIGHT:                                                                                                                                 \n",    \
         "    TIME:                                                                                                                                   \n",    \
         "============================================================================================================================================\n",    \
-        "        POWER    [ ]                FAULT       [ ]         |        EPS:                             MPU:                                  \n",    \
-        "        START    [ ]                CRIT FAULT  [ ]         |          POWER AVAIL [ ]                  BLEED AVAIL         [ ]             \n",    \
+        "        POWER    [ ]                FAULT       [ ]         |        EPS:                            MPU:                                   \n",    \
+        "        START    [ ]                CRIT FAULT  [ ]         |          POWER AVAIL  [ ]                 BLEED AVAIL         [ ]             \n",    \
         "        AVAIL    [ ]                AUTO SHTDN  [ ]         |        FS:                                BLEED VLV STAT      [ ]             \n",    \
-        "        STOP     [ ]                                        |          FUEL DEMAND [ ]                  XBLEED VLV STAT     [ ]             \n",    \
+        "        STOP     [ ]                                        |          FUEL DEMAND  [ ]                 XBLEED VLV STAT     [ ]             \n",    \
         "                                                            |        AirCS:                             ENG BLEED VLV STAT  [ ]             \n",    \
-        "        N1                                                  |          BLEED AVAIL [ ]                  ENOUGH BLEED PRES   [ ]             \n",    \
+        "        N1                                                  |          BLEED AVAIL  [ ]                 ENOUGH BLEED PRES   [ ]             \n",    \
         "        EGT                                                 |                                                                               \n",    \
         "============================================================================================================================================\n",    \
         "    STARTER:         [ ]    ROTOR:                COMPRESSOR:      GENERATOR:                PNUEMATIC SYSTEM:                              \n",    \
@@ -38,24 +38,24 @@
         "                              N                    M                  M                        FAULT        [ ]      FAULT           [ ]    \n",    \
         "    PID:                      EGT                  P3               NGC:              [ ]      OPEN CMD     [ ]      OPEN CMD        [ ]    \n",    \
         "      FUEL FEED             N1 0:         [ ]      T3                 FAULT           [ ]      CLOSE CMD    [ ]      CLOSE CMD       [ ]    \n",    \
-        "                              FAULT       [ ]    P3:        [ ]       VALUE                    OPEN         [ ]      OPEN            [ ]    \n",    \
-        "    GAS GENERATOR:            VALUE                FAULT    [ ]                              ASV SENSOR:    [ ]    FCV SENSOR:       [ ]    \n",    \
-        "      IGNITED        [ ]    N1 1:         [ ]      VALUE            FUEL PUMP:        [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
-        "      FUEL CMD                FAULT       [ ]    T3:        [ ]       TURN ON CMD     [ ]      VALUE        [ ]      VALUE           [ ]    \n",    \
-        "      FUEL                    VALUE                FAULT    [ ]       TURN OFF CMD    [ ]    BSV:           [ ]    XBLEED:           [ ]    \n",    \
-        "      M                     EGT A0:       [ ]      VALUE              ON              [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
-        "    FLAME SENSOR:    [ ]      FAULT       [ ]                         M                        OPEN CMD     [ ]      OPEN CMD        [ ]    \n",    \
-        "      FAULT          [ ]      VALUE              COOLING FAN:       FUEL SOV:         [ ]      CLOSE CMD    [ ]      CLOSE CMD       [ ]    \n",    \
-        "      VALUE          [ ]    EGT A1:       [ ]      FAULT    [ ]       FAULT           [ ]      OPEN         [ ]      OPEN            [ ]    \n",    \
-        "                              FAULT       [ ]      N                  OPEN CMD        [ ]    BSV SENSOR:    [ ]    XBLEED SENSOR:    [ ]    \n",    \
-        "                              VALUE                M                  CLOSE CMD       [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
-        "                            EGT B0:       [ ]                         OPEN            [ ]      VALUE        [ ]      VALUE           [ ]    \n",    \
+        "      P COMP                  FAULT       [ ]    P3:        [ ]       VALUE                    OPEN         [ ]      OPEN            [ ]    \n",    \
+        "      I COMP                  VALUE                FAULT    [ ]                              ASV SENSOR:    [ ]    FCV SENSOR:       [ ]    \n",    \
+        "      D COMP               N1 1:         [ ]      VALUE            FUEL PUMP:        [ ]       FAULT        [ ]      FAULT           [ ]    \n",    \
+        "                              FAULT       [ ]    T3:        [ ]       TURN ON CMD     [ ]      VALUE        [ ]      VALUE           [ ]    \n",    \
+        "    GAS GENERATOR:            VALUE                FAULT    [ ]       TURN OFF CMD    [ ]    BSV:           [ ]    XBLEED:           [ ]    \n",    \
+        "      IGNITED        [ ]    EGT A0:       [ ]      VALUE              ON              [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
+        "      FUEL CMD              FAULT       [ ]                         M                          OPEN CMD     [ ]      OPEN CMD        [ ]    \n",    \
+        "      FUEL                    VALUE              COOLING FAN:       FUEL SOV:         [ ]      CLOSE CMD    [ ]      CLOSE CMD       [ ]    \n",    \
+        "      M                     EGT A1:       [ ]      FAULT    [ ]       FAULT           [ ]      OPEN         [ ]      OPEN            [ ]    \n",    \
+        "    FLAME SENSOR:    [ ]      FAULT       [ ]      N                  OPEN CMD        [ ]    BSV SENSOR:    [ ]    XBLEED SENSOR:    [ ]    \n",    \
+        "      FAULT          [ ]      VALUE                M                  CLOSE CMD       [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
+        "      VALUE          [ ]    EGT B0:       [ ]                         OPEN            [ ]      VALUE        [ ]      VALUE           [ ]    \n",    \
         "                              FAULT       [ ]                       FUEL SOV SENSOR:  [ ]    P2:            [ ]    P DUCT:           [ ]    \n",    \
-        "                              VALUE                                   FAULT           [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
-        "                            EGT B1:       [ ]                         VALUE           [ ]      VALUE                 VALUE                  \n",    \
-        "                              FAULT       [ ]                                                T2:            [ ]    T DUCT:           [ ]    \n",    \
-        "                              VALUE                                                            FAULT        [ ]      FAULT           [ ]    \n",    \
-        "                                                                                               VALUE                 VALUE                  \n",    \
+        "========================      VALUE                                   FAULT           [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
+        "    ECU channel 0:          EGT B1:       [ ]                         VALUE           [ ]      VALUE                 VALUE                  \n",    \
+        "      FAILURE        [ ]      FAULT       [ ]                                                T2:            [ ]    T DUCT:           [ ]    \n",    \
+        "    ECU channel 1:            VALUE                                                            FAULT        [ ]      FAULT           [ ]    \n",    \
+        "      FAILURE        [ ]                                                                       VALUE                 VALUE                  \n",    \
         "============================================================================================================================================\n"     \
     }
 #define N_DETAILED_LAYOUT 37
@@ -65,6 +65,7 @@
 #define SMB_0 ' '                                           // Символ, которым отмечаются ложные поля
 #define BRACKET_FORMAT "  [%c] "                            // Форматная строка для вывода скобки
 #define BRACKET_SMB(condition) (condition? SMB_1 : SMB_0)   // Условие выбора символа в скобке
+#define EXP_FORMAT "%8.1e "                                  // Экспоненциальный формат для коэффициентов ПИД
 #define N_FORMAT "%5.0f "                                   // Форматная строка для оборотов
 #define M_FORMAT "%5.1f "                                   // Форматная строка для момента
 #define P_FORMAT "%5.1f "                                   // Форматная строка для давления
@@ -72,7 +73,7 @@
 #define FUEL_FEED_FORMAT "%5.3f "                           // Форматная строка для подачи топлива (0..1)
 #define FUEL_FORMAT "%5.2f "                                // Форматная строка для топлива (0..12)
 #define HEIGHT_FORMAT "%d        "                          // Форматная строка высоты
-#define TIME_FORMAT "%.2f s (%d tacts)        "            // Форматная строка для времени
+#define TIME_FORMAT "%.2f s (%d tacts)        "             // Форматная строка для времени
 
 // Положения отдельных элементов (начиная с 0, X - колонка, Y - строка)
 #define POS_X_GENERAL_COL 12
@@ -108,37 +109,43 @@
 #define POS_X_COMPS_COL1 19
 #define POS_Y_START_POWER      (POS_Y_EGT + 2)
 #define POS_Y_START_M          (POS_Y_START_POWER + 1)
-#define POS_Y_PID_FUEL_FEED    (POS_Y_START_M + 4)
-#define POS_Y_GGEN_IGNITED     (POS_Y_START_M + 7)
-#define POS_Y_GGEN_FUEL_CMD    (POS_Y_START_M + 8)
-#define POS_Y_GGEN_FUEL        (POS_Y_START_M + 9)
-#define POS_Y_GGEN_M           (POS_Y_START_M + 10)
-#define POS_Y_GGEN_FLAME_POWER (POS_Y_START_M + 11)
-#define POS_Y_GGEN_FLAME_FAULT (POS_Y_START_M + 12)
-#define POS_Y_GGEN_FLAME_VALUE (POS_Y_START_M + 13)
+#define POS_Y_PID_FUEL_FEED    (POS_Y_START_M + 3)
+#define POS_Y_PID_P_COMP       (POS_Y_START_M + 4)
+#define POS_Y_PID_I_COMP       (POS_Y_START_M + 5)
+#define POS_Y_PID_D_COMP       (POS_Y_START_M + 6)
+#define POS_Y_GGEN_IGNITED     (POS_Y_START_M + 9)
+#define POS_Y_GGEN_FUEL_CMD    (POS_Y_START_M + 10)
+#define POS_Y_GGEN_FUEL        (POS_Y_START_M + 11)
+#define POS_Y_GGEN_M           (POS_Y_START_M + 12)
+#define POS_Y_GGEN_FLAME_POWER (POS_Y_START_M + 13)
+#define POS_Y_GGEN_FLAME_FAULT (POS_Y_START_M + 14)
+#define POS_Y_GGEN_FLAME_VALUE (POS_Y_START_M + 15)
+// Также канала ECU
+#define POS_Y_ECU0 (POS_Y_GGEN_FLAME_VALUE + 4)
+#define POS_Y_ECU1 (POS_Y_ECU0 + 2)
 
 #define POS_X_COMPS_COL2 40
-#define POS_Y_ROTOR_NTARGET            POS_Y_START_M
-#define POS_Y_ROTOR_N                 (POS_Y_ROTOR_NTARGET + 1)
-#define POS_Y_ROTOR_EGT               (POS_Y_ROTOR_NTARGET + 2)
-#define POS_Y_ROTOR_N10_POWER         (POS_Y_ROTOR_NTARGET + 3)
-#define POS_Y_ROTOR_N10_POWER_FAULT   (POS_Y_ROTOR_NTARGET + 4)
-#define POS_Y_ROTOR_N10_POWER_VALUE   (POS_Y_ROTOR_NTARGET + 5)
-#define POS_Y_ROTOR_N11_POWER         (POS_Y_ROTOR_NTARGET + 6)
-#define POS_Y_ROTOR_N11_POWER_FAULT   (POS_Y_ROTOR_NTARGET + 7)
-#define POS_Y_ROTOR_N11_POWER_VALUE   (POS_Y_ROTOR_NTARGET + 8)
-#define POS_Y_ROTOR_EGTA0_POWER       (POS_Y_ROTOR_NTARGET + 9)
-#define POS_Y_ROTOR_EGTA0_POWER_FAULT (POS_Y_ROTOR_NTARGET + 10)
-#define POS_Y_ROTOR_EGTA0_POWER_VALUE (POS_Y_ROTOR_NTARGET + 11)
-#define POS_Y_ROTOR_EGTA1_POWER       (POS_Y_ROTOR_NTARGET + 12)
-#define POS_Y_ROTOR_EGTA1_POWER_FAULT (POS_Y_ROTOR_NTARGET + 13)
-#define POS_Y_ROTOR_EGTA1_POWER_VALUE (POS_Y_ROTOR_NTARGET + 14)
-#define POS_Y_ROTOR_EGTB0_POWER       (POS_Y_ROTOR_NTARGET + 15)
-#define POS_Y_ROTOR_EGTB0_POWER_FAULT (POS_Y_ROTOR_NTARGET + 16)
-#define POS_Y_ROTOR_EGTB0_POWER_VALUE (POS_Y_ROTOR_NTARGET + 17)
-#define POS_Y_ROTOR_EGTB1_POWER       (POS_Y_ROTOR_NTARGET + 18)
-#define POS_Y_ROTOR_EGTB1_POWER_FAULT (POS_Y_ROTOR_NTARGET + 19)
-#define POS_Y_ROTOR_EGTB1_POWER_VALUE (POS_Y_ROTOR_NTARGET + 20)
+#define POS_Y_ROTOR_NTARGET      POS_Y_START_M
+#define POS_Y_ROTOR_N           (POS_Y_ROTOR_NTARGET + 1)
+#define POS_Y_ROTOR_EGT         (POS_Y_ROTOR_NTARGET + 2)
+#define POS_Y_ROTOR_N10_POWER   (POS_Y_ROTOR_NTARGET + 3)
+#define POS_Y_ROTOR_N10_FAULT   (POS_Y_ROTOR_NTARGET + 4)
+#define POS_Y_ROTOR_N10_VALUE   (POS_Y_ROTOR_NTARGET + 5)
+#define POS_Y_ROTOR_N11_POWER   (POS_Y_ROTOR_NTARGET + 6)
+#define POS_Y_ROTOR_N11_FAULT   (POS_Y_ROTOR_NTARGET + 7)
+#define POS_Y_ROTOR_N11_VALUE   (POS_Y_ROTOR_NTARGET + 8)
+#define POS_Y_ROTOR_EGTA0_POWER (POS_Y_ROTOR_NTARGET + 9)
+#define POS_Y_ROTOR_EGTA0_FAULT (POS_Y_ROTOR_NTARGET + 10)
+#define POS_Y_ROTOR_EGTA0_VALUE (POS_Y_ROTOR_NTARGET + 11)
+#define POS_Y_ROTOR_EGTA1_POWER (POS_Y_ROTOR_NTARGET + 12)
+#define POS_Y_ROTOR_EGTA1_FAULT (POS_Y_ROTOR_NTARGET + 13)
+#define POS_Y_ROTOR_EGTA1_VALUE (POS_Y_ROTOR_NTARGET + 14)
+#define POS_Y_ROTOR_EGTB0_POWER (POS_Y_ROTOR_NTARGET + 15)
+#define POS_Y_ROTOR_EGTB0_FAULT (POS_Y_ROTOR_NTARGET + 16)
+#define POS_Y_ROTOR_EGTB0_VALUE (POS_Y_ROTOR_NTARGET + 17)
+#define POS_Y_ROTOR_EGTB1_POWER (POS_Y_ROTOR_NTARGET + 18)
+#define POS_Y_ROTOR_EGTB1_FAULT (POS_Y_ROTOR_NTARGET + 19)
+#define POS_Y_ROTOR_EGTB1_VALUE (POS_Y_ROTOR_NTARGET + 20)
 
 #define POS_X_COMPS_COL3 58
 #define POS_Y_COMP_BLEED     POS_Y_START_M
@@ -166,7 +173,7 @@
 #define POS_Y_PUMP_TURN_OFF              (POS_Y_PUMP_POWER + 2)
 #define POS_Y_PUMP_ON                    (POS_Y_PUMP_POWER + 3)
 #define POS_Y_PUMP_M                     (POS_Y_PUMP_POWER + 4)
-#define POS_Y_PUMP_FUEL_SOV              (POS_Y_PUMP_POWER + 5)
+#define POS_Y_PUMP_FUEL_SOV_POWER        (POS_Y_PUMP_POWER + 5)
 #define POS_Y_PUMP_FUEL_SOV_FAULT        (POS_Y_PUMP_POWER + 6)
 #define POS_Y_PUMP_FUEL_SOV_OPEN_CMD     (POS_Y_PUMP_POWER + 7)
 #define POS_Y_PUMP_FUEL_SOV_CLOSE_CMD    (POS_Y_PUMP_POWER + 8)
@@ -199,7 +206,7 @@
 #define POS_Y_PSYS_T2_FAULT         (POS_Y_PSYS_ASV_POWER + 20)
 #define POS_Y_PSYS_T2_VALUE         (POS_Y_PSYS_ASV_POWER + 21)
 
-#define POS_X_COMPS_COL5 131
+#define POS_X_COMPS_COL6 131
 #define POS_Y_PSYS_FCV_POWER            POS_Y_START_M
 #define POS_Y_PSYS_FCV_FAULT           (POS_Y_PSYS_FCV_POWER + 1)
 #define POS_Y_PSYS_FCV_OPEN_CMD        (POS_Y_PSYS_FCV_POWER + 2)
@@ -249,6 +256,9 @@ typedef struct
     bool first_output;                  ///<
     char starter_M[STRING_LEN];         ///< Относительные пути к файлам
     char pid_fuel_feed[STRING_LEN];
+    char pid_p_component[STRING_LEN];
+    char pid_i_component[STRING_LEN];
+    char pid_d_component[STRING_LEN];
     char ggen_fuel_cmd[STRING_LEN];
     char ggen_fuel[STRING_LEN];
     char ggen_M[STRING_LEN];
@@ -264,6 +274,9 @@ typedef struct
     char psys_T2[STRING_LEN];
     char psys_P_duct[STRING_LEN];
     char psys_T_duct[STRING_LEN];
+    char temp[STRING_LEN];
+    bool first_log;                     ///<
+    char log[STRING_LEN];
 } File_output;
 
 void init_file_output(File_output* fout);
@@ -278,7 +291,7 @@ typedef struct {
 
 void init_buffer(Message_buffer* mb);
 // Запись в буфер
-void print_to_buffer(Message_buffer* mb, char* str[STRING_LEN]);
+void print_to_buffer(Message_buffer* mb, char* str[STRING_LEN], File_output* fout);
 
 void move_to(int x, int y);
 
@@ -293,14 +306,24 @@ void printer(
     int* prev_height,
     State state,
     State* prev_state,
+    bool ECU0_fault,
+    bool* ECU0_fault_prev,
+    bool ECU1_fault,
+    bool* ECU1_fault_prev,
     APU* apu,
     APU* prev_apu);
+
 // Обработка ввода
 void handle_key_press(
     char key,
     bool manual_mode,
     Output* out,
+    File_output* fout,
     Message_buffer* mb,
     State state,
     bool power,
+    bool* c0_fault,
+    bool* c1_fault,
+    APU* apu,
+    Physical* phys,
     Actions_manual* actm);

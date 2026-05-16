@@ -5,19 +5,12 @@
 #include "apu_controller.h"
 #include "apu_defs.h"
 
-void reset_fault(
-    Messages* msgs,
-    Gas_generator* ggen,
-    Rotor* rotor,
-    Cooling_fan* fan,
-    Generator* gen,
-    Compressor* comp,
-    Fuel_pump* pump,
-    Pneumatic_system* psys);
-
 void perform_manual_actions(
     Actions_manual* actm,
+    Physical* phys,
     Messages* msgs,
+    Data* data,
+    Problem_notifications* ntfs,
     State state,
     ECU* c0,
     ECU* c1,
@@ -33,10 +26,17 @@ void perform_manual_actions(
 void perform_actions(
     Actions* acts,
     Messages* msgs,
+    Data* data,
     Actions_manual* actm,
+    Physical* phys,
+    State* state,
+    ECU* c0,
+    ECU* c1,
     Starter* start,
+    PID* pid,
     Gas_generator* ggen,
     Rotor* rotor,
+    Compressor* comp,
     Generator* gen,
     Fuel_pump* pump,
     Pneumatic_system* psys);

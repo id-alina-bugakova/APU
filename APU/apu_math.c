@@ -10,9 +10,7 @@
 
 double double_abs(double a)
 {
-    if (a < 0)
-        return -a;
-    return a;
+    return a < 0 ? -a : a;
 }
 
 int sign(double a)
@@ -26,6 +24,8 @@ int sign(double a)
 
 double binpow(double a, int p)
 {
+    if (p < 0)
+        return 1.0 / binpow(a, -p);
     if (p == 0)
         return 1;
     if (p == 1)

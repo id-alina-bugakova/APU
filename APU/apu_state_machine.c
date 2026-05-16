@@ -67,10 +67,9 @@ State handle_event(State current, Event event)
             return STATE_IDLE_RUN_LIMITED;
         break;
 
-    // Аварийное отключение происходит из аварийных состояний
+    // Аварийное отключение происходит из любого состояния в случае аварийной ситуации или 
+    // критического отказа
     case EVENT_EMERGENCY_SHUTDOWN_CMD:
-        if (current == STATE_APU_FIRE || current == STATE_EGT_OVER_LIMIT ||
-            current == STATE_OVSPEED  || current == STATE_FLAME_OUT)
             return STATE_EMERGENCY_SHUTDOWN;
         break;
 

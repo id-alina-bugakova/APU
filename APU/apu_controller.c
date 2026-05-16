@@ -8,10 +8,8 @@
 */
 
 #include "apu_controller.h"
-#include "apu_communication.h"
 #include "apu_defs.h"
 #include "apu_state_machine.h"
-#include "apu_interface.h"
 
 void init_controller(ECU* contr, int id, bool main_channel)
 {
@@ -21,57 +19,6 @@ void init_controller(ECU* contr, int id, bool main_channel)
     contr->fault           = 0;
     contr->last_updated    = 0;
     contr->tolerance       = 4;
-}
-
-void test_components(
-    Gas_generator* ggen,
-    Rotor* rotor,
-    Compressor* comp,
-    Cooling_fan* fan,
-    Generator* gen,
-    Fuel_pump* pump,
-    Pneumatic_system* psys,
-    Messages* msgs,
-    Data* data)
-{
-    /* Критические отказы: датчика пламени, двух датчиков оборотов, двух каналов EGT,
-    *  датчиков температуры/давления за компрессором, клапана подачи топлива или его
-    *  датчика, клапана забора атмосферного воздуха (если закрыт) или его датчика,
-    *  клапана отбора воздуха в пневмосистему или его датчика, перекрестного клапана
-    *  СКВ/МСУ (если открыт на СКВ - 1) или его датчика, перекрестного клапана МСУ или
-    *  его датчика. Также учитывается пожар.
-    */
-    if (msgs->fps.fire_sig ||
-        ggen->flame_sensor.fault ||
-        (rotor->N1_0.fault && rotor->N1_1.fault) ||
-        (rotor->EGT_A0.fault && rotor->EGT_A1.fault &&
-            rotor->EGT_B0.fault && rotor->EGT_B1.fault) ||
-        comp->P3.fault || comp->T3.fault ||
-        pump->fuel_sov.fault || pump->fuel_sov.sensor.fault ||
-        (psys->asv.fault && psys->asv.open == 0) || psys->asv.sensor.fault ||
-        psys->bsv.fault || psys->bsv.sensor.fault ||
-        (psys->fcv.fault && psys->fcv.open == 1) || psys->fcv.sensor.fault ||
-        psys->mpu_xbleed.fault || psys->mpu_xbleed.sensor.fault)
-        data->critical_fault = 1;
-    /* Некритические отказы: одного из датчиков вращения ротора, одного или нескольких датчиков EGT
-    *  (не всех), вентилятора отсека, датчика частоты вращения генератора, датчика давления 
-    *  топлива, клапана забора атмосферного воздуха (если открыт), датчиков температуры/давления за
-    *  бортом, перекрестного клапана СКВ/МСУ (если открыт на МСУ - 0), датчиков
-    *  температуры/давления на входе в пневмосистему.
-    *  Параметр apu_fault сигнализирует о всех отказах, включая критические.
-    */
-    if (data->critical_fault ||
-        rotor->N1_0.fault || rotor->N1_1.fault ||
-        rotor->EGT_A0.fault || rotor->EGT_A1.fault ||
-        rotor->EGT_B0.fault || rotor->EGT_B1.fault ||
-        fan->fault ||
-        gen->NGC.fault ||
-        pump->P_fuel.fault ||
-        (psys->asv.fault && psys->asv.open == 1) ||
-        psys->T2.fault || psys->P2.fault ||
-        (psys->fcv.fault && psys->fcv.open == 0) ||
-        psys->T_duct.fault || psys->P_duct.fault)
-        data->fault = 1;
 }
 
 double calculate_EGT(Rotor* rotor)
@@ -133,7 +80,7 @@ void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
         data->ovheat = 1;
         data->last_ovheat_detected = cur_time;
     }
-    else
+    else if (data->EGT_cur < EGT_LIMIT)
         data->ovheat = 0;
 }
 
@@ -145,7 +92,8 @@ void check_for_emergencies(
     Gas_generator* ggen,
     Responses* rsps,
     Data* data,
-    Message_buffer* mb)
+    Message_buffer* mb,
+    File_output* fout)
 {
     // Обработка аварийных состояний
     if (data->EGT_cur > EGT_LIMIT &&
@@ -154,7 +102,7 @@ void check_for_emergencies(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Emergency: EGT over limit.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
         *last_event = EVENT_OVHEAT_DETECTED;
         rotor->N_target = 0; // Остановка с отсечкой топлива
         rsps->fs.fuel_demand = 0;
@@ -166,7 +114,7 @@ void check_for_emergencies(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Emergency: rotor overspeed.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
         *last_event = EVENT_OVSPEED_DETECTED;
         rotor->N_target = 0; // Остановка с отсечкой топлива
         rsps->fs.fuel_demand = 0;
@@ -179,7 +127,7 @@ void check_for_emergencies(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Emergency: flame went out.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
         *last_event = EVENT_FLAME_WENT_OUT;
         rotor->N_target = 0; // Остановка с отсечкой топлива
         rsps->fs.fuel_demand = 0;
@@ -197,7 +145,8 @@ void check_for_emergencies_emergent(
     Messages* msgs,
     Responses* rsps,
     Data* data, 
-    Message_buffer* mb)
+    Message_buffer* mb,
+    File_output* fout)
 {
     // Единственная значимая проблема это погасание факела 
     if (data->ignited && !ggen->flame_sensor.value &&
@@ -206,7 +155,7 @@ void check_for_emergencies_emergent(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Warning: flame went out.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
         *last_event = EVENT_FLAME_WENT_OUT;
         data->emergency_found = 1;
     }
@@ -217,7 +166,7 @@ void check_for_emergencies_emergent(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Warning: fire detected.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
     }
     if (data->EGT_cur > EGT_LIMIT &&
         TIME(cur_time) > TIME(data->last_ovheat_detected) + OVHEAT_TIME_LIMIT)
@@ -225,14 +174,14 @@ void check_for_emergencies_emergent(
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Warning: EGT over limit.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
     }
     else if (data->N_cur > N_LIMIT)
     {
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Warning: rotor overspeed.\n",
             c1->id, TIME(cur_time));
-        print_to_buffer(mb, temp_str);
+        print_to_buffer(mb, temp_str, fout);
     }
 }
 
@@ -254,12 +203,14 @@ void update_controller(
     Actions* acts,
     Data* data,
     Physical* phys,
-    Message_buffer* mb)
+    Problem_notifications* ntfs,
+    Message_buffer* mb,
+    File_output* fout)
 {
 
     char temp_str[STRING_LEN];
     // Если контроллер работает на втором канале
-    if (!c1->fault && !c1->main_channel)
+    if (c1->power && !c1->fault && !c1->main_channel)
     {
         // Если по какой-то причине второй контроллер не главный канал, перехватываем управление
         if (!c2->main_channel)
@@ -272,7 +223,7 @@ void update_controller(
         if (c1->main_channel)
         {
             sprintf(&temp_str, "Controller %d at %7.2f : Intercepted control.\n", c1->id, TIME(cur_time));
-            print_to_buffer(mb, temp_str);
+            print_to_buffer(mb, temp_str, fout);
         }
 
         // Запоминаем время обновления
@@ -296,7 +247,7 @@ void update_controller(
             *state != STATE_APU_FIRE && *state != STATE_EMERGENCY_SHUTDOWN) 
         {
             sprintf(&temp_str, "Controller %d at %7.2f : Warning: fire detected.\n", c1->id, TIME(cur_time));
-            print_to_buffer(mb, temp_str);
+            print_to_buffer(mb, temp_str, fout);
             last_event = EVENT_FIRE_DETECTED;
             data->fire = 1;
         }
@@ -306,11 +257,14 @@ void update_controller(
             {
             case STATE_OFF:
                 // Если подано питание и получено сообщение о подаче питания И не пожар
-                if (c1->power && msgs->rcs.apu_power && !msgs->fps.fire_sig)
+                if (msgs->rcs.apu_power && !msgs->fps.fire_sig)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : APU turned ON.\n", c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_POWER_ON;
+                    acts->power_on_cmd = 1;
+                    data->flame_was_on = 0;
+                    data->last_flame_out_updated = 0;
                 }
                 break;
 
@@ -321,8 +275,9 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Turning OFF.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_POWER_OFF;
+                    acts->power_off_cmd = 1;
                 }
                 if (msgs->auto_cs.auto_start)
                 {
@@ -330,21 +285,21 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to fire.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else if (phys->height >= CRITICAL_HEIGHT)
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to height.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else if (!msgs->fs.fuel_avail || msgs->fs.low_pres_warn)
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to fuel issues.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else if (data->critical_fault)
@@ -353,14 +308,14 @@ void update_controller(
                             "Controller %d at %7.2f : Unable to auto start due to critical fault.\n",
                             c1->id, 
                             TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Auto starting...\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_AUTO_START_CMD;
                         data->last_start_cmd = cur_time;
                     }
@@ -375,13 +330,13 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Emergency starting...\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_EMERGENCY_START_CMD;
                     }
                     else
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Starting...\n", c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_START_CMD;
                     }
                     data->last_start_cmd = cur_time;
@@ -390,7 +345,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Initiating testing...\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_TEST_START_CMD;
                 }
                 break;
@@ -398,24 +353,37 @@ void update_controller(
             case STATE_TEST:
                 check_N_EGT(cur_time, rotor, rsps, data);
                 rsps->rcs.power_on = 1;
-                test_components(ggen, rotor, comp, fan, gen, pump, psys, msgs, data);
+                wellness_check(ggen, rotor, comp, fan, gen, pump, psys, msgs, data);
                 rsps->rcs.critical_fault = data->critical_fault;
                 rsps->rcs.apu_fault = data->fault;
                 if (rsps->rcs.apu_fault && rsps->rcs.critical_fault)
+                {
                     sprintf(
-                        &temp_str, 
+                        &temp_str,
                         "Controller %d at %7.2f : Testing completed. Problems found: YES; critical problems found: YES.\n",
                         c1->id, TIME(cur_time));
-                else if(rsps->rcs.apu_fault && !rsps->rcs.critical_fault)
+                    rsps->rcs.apu_fault = 1;
+                    rsps->rcs.critical_fault = 1;
+                }
+                else if (rsps->rcs.apu_fault && !rsps->rcs.critical_fault)
+                {
                     sprintf(
                         &temp_str,
                         "Controller %d at %7.2f : Testing completed. Problems found: YES; critical problems found: NO.\n",
                         c1->id, TIME(cur_time));
+                    rsps->rcs.apu_fault = 1;
+                    rsps->rcs.critical_fault = 0;
+                }
                 else
+                {
                     sprintf(
                         &temp_str,
                         "Controller %d at %7.2f : Testing completed. Problems found: NO; critical problems found: NO.\n",
                         c1->id, TIME(cur_time));
+                    rsps->rcs.apu_fault = 0;
+                    rsps->rcs.critical_fault = 0;
+                }
+                print_to_buffer(mb, temp_str, fout);
                 last_event = EVENT_TEST_COMPLETED;
                 acts->stop_testing = 1;
                 break;
@@ -430,11 +398,18 @@ void update_controller(
                 *  превышено макс. время запуска, перегрев дольше OVHEAT_TIME_LIMIT с,
                 *  разнос ротора, погасание факела в камере сгорания
                 */
+                // Если восстанавливается пламя, сбрасываем отслеживание последнего погасания
+                if (ggen->flame_sensor.value)
+                {
+                    data->flame_was_on = 1;
+                    data->last_flame_out_updated = 0;
+                }
+                // Прерывание старта
                 if (*state != STATE_AUTO_START && msgs->rcs.stop_cmd)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Start aborted.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_START_ABORTED;
                     data->starting = 0;
                     rsps->rcs.start = 0;
@@ -453,7 +428,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Start failure: start time exceeded.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_START_FAILURE;
                         data->starting = 0;
                         rsps->rcs.start = 0;
@@ -464,7 +439,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Warning: start time exceeded.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                     }
                 }
                 else if (data->EGT_cur > EGT_LIMIT &&
@@ -474,7 +449,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Start failure: EGT over limit.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_OVHEAT_DETECTED;
                         data->starting = 0;
                         rsps->rcs.start = 0;
@@ -487,7 +462,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Warning: EGT over limit.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                     }
                 }
                 else if (data->N_cur > N_LIMIT)
@@ -496,7 +471,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Start failure: rotor overspeed.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_OVSPEED_DETECTED;
                         data->starting = 0;
                         rsps->rcs.start = 0;
@@ -509,39 +484,78 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Warning: rotor overspeed.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                     }
                 }
-                else if (data->ignited && !ggen->flame_sensor.value &&
-                    TIME(cur_time) > TIME(data->last_ignited) + IGNITION_TIME_LIMIT)
+                else if (data->ignited && !ggen->flame_sensor.value)
                 {
-                    if (*state != STATE_EMERGENCY_START)
+                    // Если пламя не появлялось и превысили время ожидания
+                    if (!data->flame_was_on &&
+                        TIME(cur_time) > TIME(data->last_ignited) + IGNITION_TIME_LIMIT)
                     {
-                        sprintf(&temp_str, "Controller %d at %7.2f : Start failure: flame went out.\n",
-                            c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
-                        data->starting = 0;
-                        rsps->rcs.start = 0;
-                        acts->abort_start = 1;
-                        rotor->N_target = 0; // Остановка с отсечкой топлива
-                        rsps->fs.fuel_demand = 0;
-                        data->demanded_fuel = 0;
+                        if (*state != STATE_EMERGENCY_START)
+                        {
+                            sprintf(&temp_str, "Controller %d at %7.2f : Start failure: ignition failure.\n",
+                                c1->id, TIME(cur_time));
+                            print_to_buffer(mb, temp_str, fout);
+                            data->starting = 0;
+                            rsps->rcs.start = 0;
+                            acts->abort_start = 1;
+                            rotor->N_target = 0; // Остановка с отсечкой топлива
+                            rsps->fs.fuel_demand = 0;
+                            data->demanded_fuel = 0;
+                        }
+                        else
+                        {
+                            // При аварийном запуске допустимо перезажигание факела
+                            sprintf(&temp_str, "Controller %d at %7.2f : Warning: ignition failure.\n",
+                                c1->id, TIME(cur_time));
+                            print_to_buffer(mb, temp_str, fout);
+                        }
+                        last_event = EVENT_FLAME_WENT_OUT;
                     }
-                    else
+                    // Если пламя появлялось и погасло
+                    else if (data->flame_was_on)
                     {
-                        // При аварийном запуске допустимо перезажигание факела
-                        sprintf(&temp_str, "Controller %d at %7.2f : Warning: flame went out.\n",
-                            c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        if (!data->last_flame_out_updated)
+                        {
+                            data->last_flame_out = cur_time;
+                            data->last_flame_out_updated = 1;
+                        }
+                        if (TIME(cur_time) > TIME(data->last_flame_out) + IGNITION_TIME_LIMIT)
+                        {
+                            if (*state != STATE_EMERGENCY_START)
+                            {
+                                sprintf(&temp_str, 
+                                    "Controller %d at %7.2f : Start failure: flame went out.\n",
+                                    c1->id, TIME(cur_time));
+                                print_to_buffer(mb, temp_str, fout);
+                                data->starting = 0;
+                                rsps->rcs.start = 0;
+                                acts->abort_start = 1;
+                                rotor->N_target = 0; // Остановка с отсечкой топлива
+                                rsps->fs.fuel_demand = 0;
+                                data->demanded_fuel = 0;
+                            }
+                            else
+                            {
+                                // При аварийном запуске допустимо перезажигание факела
+                                sprintf(&temp_str, 
+                                    "Controller %d at %7.2f : Warning: flame went out.\n",
+                                    c1->id, TIME(cur_time));
+                                print_to_buffer(mb, temp_str, fout);
+                            }
+                            last_event = EVENT_FLAME_WENT_OUT;
+                        }
                     }
-                    last_event = EVENT_FLAME_WENT_OUT;
+                    
                 }
                 // Корректное завершение запуска: малые обороты набраны
                 else if (data->N_cur >= rotor->N_idle - N_COMP_CONST)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Start success.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_START_SUCCESS;
                     data->starting = 0;
                     rsps->rcs.start = 0;      // Сообщаем о включении
@@ -556,7 +570,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Start initiated.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
                     data->demanded_fuel = 0;
@@ -582,7 +596,7 @@ void update_controller(
                         {
                             sprintf(&temp_str, "Controller %d at %7.2f : Start failure: start time exceeded.\n",
                                 c1->id, TIME(cur_time));
-                            print_to_buffer(mb, temp_str);
+                            print_to_buffer(mb, temp_str, fout);
                             last_event = EVENT_START_FAILURE;
                             data->starting = 0;
                             rsps->rcs.start = 0;
@@ -616,13 +630,13 @@ void update_controller(
                     rsps->rcs.avail = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 // Обработка команды выключения 
                 if (!data->emergency_found && msgs->rcs.stop_cmd)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Shutdown command recieved.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NORMAL_SHUTDOWN_CMD;
                     data->starting = 0;
                 }
@@ -633,7 +647,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : MPU demanded air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
@@ -646,7 +660,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : EPS demanded generator.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
@@ -658,7 +672,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : ACS demanded air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
@@ -689,16 +703,23 @@ void update_controller(
                         acts->update_gen_demand = 1;
                         acts->gen_demand = 1;
                     }
-                    else if (msgs->air_cs.bleed_air_demand)
+                    else if (msgs->air_cs.bleed_air_demand && !psys->fcv.fault)
                     {
                         last_event = EVENT_BLEED_ON_CMD;
                         acts->update_air_demand = 1;
-                        acts->open_bsv;
+                        acts->open_bsv = 1;
                         acts->switch_fcv_to_acs = 1;
+                    }
+                    else if (msgs->air_cs.bleed_air_demand && psys->fcv.fault)
+                    {
+                        last_event = EVENT_NONE;
+                        sprintf(&temp_str, "Controller %d at %7.2f : Unable to bleed air to ASC due to FCV jam.\n",
+                            c1->id, TIME(cur_time));
+                        print_to_buffer(mb, temp_str, fout);
                     }
                     sprintf(&temp_str, "Controller %d at %7.2f : Full rotation speed reached.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     data->starting = 0;
                 }
                 // Иначе ждем выхода ротора на обороты
@@ -709,14 +730,14 @@ void update_controller(
                 rsps->fs.fuel_demand = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 // Остановка - в начале, т.к. начатая приоритетнее других команд
                 if (data->starting && !data->emergency_found && 
                     DOUBLE_EQUALS(data->N_cur, rotor->N_idle, N_COMP_CONST))
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returned to low speed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_BLEED_OFF_CMD;
                     data->starting = 0;
                 }
@@ -725,7 +746,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Switched to MPU air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_MPU_ON_CMD;
                     // Обновляем требование воздуха
                     acts->update_air_demand = 1;
@@ -737,7 +758,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Generator turned ON.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_GEN_ON_CMD;
                     // Подключаем генератор
                     acts->update_gen_demand = 1;
@@ -751,7 +772,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returning to low speed...\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     // Отключение подачи воздуха
                     acts->update_air_demand = 1;
@@ -775,14 +796,14 @@ void update_controller(
                 rsps->fs.fuel_demand = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 // Остановка - в начале, т.к. начатая приоритетнее других команд
                 if (data->starting && !data->emergency_found &&
                     DOUBLE_EQUALS(data->N_cur, rotor->N_idle, N_COMP_CONST))
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returned to low speed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_GEN_OFF_CMD;
                     data->starting = 0;
                 }
@@ -791,26 +812,34 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Switched to MPU air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_MPU_ON_CMD;
                     // Требование воздуха + убираем генератор
                     acts->update_gen_demand = 1;
                     acts->gen_demand = 0;
                     acts->update_air_demand = 1;
-                    acts->open_bsv;
-                    acts->switch_fcv_to_mpu;
+                    acts->open_bsv = 1;
+                    acts->switch_fcv_to_mpu = 1;
                 }
-                else if (!data->starting && !data->emergency_found
-                    && msgs->air_cs.bleed_air_demand)
+                else if (!data->starting && !data->emergency_found &&
+                    msgs->air_cs.bleed_air_demand && !psys->fcv.fault) 
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : ACS bleed turned ON.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_BLEED_ON_CMD;
                     // Требование воздуха 
                     acts->update_air_demand = 1;
-                    acts->open_bsv;
-                    acts->switch_fcv_to_acs;
+                    acts->open_bsv = 1;
+                    acts->switch_fcv_to_acs = 1;
+                }
+                else if (!data->starting && !data->emergency_found &&
+                    msgs->air_cs.bleed_air_demand && psys->fcv.fault)
+                {
+                    last_event = EVENT_NONE;
+                    sprintf(&temp_str, "Controller %d at %7.2f : Unable to bleed air to ASC due to FCV jam.\n",
+                        c1->id, TIME(cur_time));
+                    print_to_buffer(mb, temp_str, fout);
                 }
                 // Если больше не требуется ВСУ - в конце, т.к. лучше не сбрасывать обороты
                 // Также остаемся в режиме до тех пор, пока не остановимся
@@ -820,7 +849,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returning to low speed...\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     // Отключение генератора
                     acts->update_gen_demand = 1;
@@ -844,13 +873,13 @@ void update_controller(
                 rsps->fs.fuel_demand = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 // Самая приоритетная задача - включение МСУ
                 if (!data->emergency_found && msgs->mpu.eng_start)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Switched to MPU air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_MPU_ON_CMD;
                     // Убираем генератор, воздух обновляем
                     acts->update_gen_demand = 1;
@@ -863,7 +892,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Generator turned OFF.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_GEN_OFF_CMD;
                     // Убираем генератор
                     acts->update_gen_demand = 1;
@@ -875,7 +904,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : ACS bleed turned OFF.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_BLEED_OFF_CMD;
                     // Убираем требование воздуха 
                     acts->update_air_demand = 1;
@@ -895,11 +924,11 @@ void update_controller(
                 rsps->fs.fuel_demand = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                if(state == STATE_MPU_START)
-                    check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                if(*state == STATE_MPU_START)
+                    check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 else
                     check_for_emergencies_emergent(
-                        c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb);
+                        c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb, fout);
                 rsps->mpu.apu_bleed_valve_stat = psys->bsv.sensor.value;
                 rsps->mpu.crossbleed_valve_stat = psys->fcv.sensor.value;
                 if (psys->bsv.sensor.value && !psys->fcv.sensor.value && phys->enough_pressure)
@@ -912,7 +941,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returned to low speed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_MPU_OFF_CMD;
                     data->starting = 0;
                     acts->mpu_start_cutoff_done = 1;
@@ -925,7 +954,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Switched to left engine.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         // Меняем на левый двигатель
                         acts->update_air_demand = 1;
                         acts->switch_xbleed_to_left = 1;
@@ -934,7 +963,7 @@ void update_controller(
                     {
                         sprintf(&temp_str, "Controller %d at %7.2f : Switched to right engine.\n",
                             c1->id, TIME(cur_time));
-                        print_to_buffer(mb, temp_str);
+                        print_to_buffer(mb, temp_str, fout);
                         // Меняем на правый двигатель
                         acts->update_air_demand = 1;
                         acts->switch_xbleed_to_right = 1;
@@ -947,7 +976,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returning to low speed...\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     // Отключение подачи воздуха
                     acts->update_air_demand = 1;
@@ -959,7 +988,12 @@ void update_controller(
                     acts->N_target = rotor->N_idle;
                 }
                 if (!data->starting && !data->emergency_found)
+                {
+                    rsps->eps.power_avail = 1;
                     rsps->mpu.apu_bleed_avail = 1;
+                    if(*state != STATE_MPU_START_LIMITED)
+                        rsps->air_cs.apu_bleed_avail = 1;
+                }
                 break;
 
             case STATE_IDLE_RUN_LIMITED:
@@ -971,13 +1005,13 @@ void update_controller(
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
                 check_for_emergencies_emergent(
-                    c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb);
+                    c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb, fout);
                 // Обработка команды выключения 
                 if (!data->emergency_found && msgs->rcs.stop_cmd)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Shutdown command recieved.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NORMAL_SHUTDOWN_CMD;
                     data->starting = 0;
                 }
@@ -988,7 +1022,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : MPU demanded air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
@@ -1001,7 +1035,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : EPS demanded generator.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     data->starting = 1;
                     data->last_start_cmd = cur_time;
@@ -1033,7 +1067,7 @@ void update_controller(
                     }
                     sprintf(&temp_str, "Controller %d at %7.2f : Limited rotation speed reached.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     data->starting = 0;
                 }
                 // Иначе ждем выхода ротора на обороты
@@ -1045,14 +1079,14 @@ void update_controller(
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
                 check_for_emergencies_emergent(
-                    c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb);
+                    c1, cur_time, &last_event, rotor, ggen, msgs, rsps, data, mb, fout);
                 // Остановка - в начале, т.к. начатая приоритетнее других команд
                 if (data->starting && !data->emergency_found &&
                     DOUBLE_EQUALS(data->N_cur, rotor->N_idle, N_COMP_CONST))
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returned to low speed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_GEN_OFF_CMD;
                     data->starting = 0;
                 }
@@ -1061,7 +1095,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Switched to MPU air bleed.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_MPU_ON_CMD;
                     // Требование воздуха + убираем генератор
                     acts->update_gen_demand = 1;
@@ -1078,7 +1112,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Returning to low speed...\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_NONE;
                     // Отключение генератора
                     acts->update_gen_demand = 1;
@@ -1101,13 +1135,13 @@ void update_controller(
                 rsps->fs.fuel_demand = 1;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 // Отмечаем начала охлаждения
                 if (!data->cooling)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Starting cooldown.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     data->last_cooldown_start = cur_time;
                     data->cooling = 1;
                 }
@@ -1117,22 +1151,23 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Cooldown is over.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_COOLDOWN_TIMEOUT;
                 }
                 break;
 
             case STATE_NORMAL_SHUTDOWN:
                 rsps->rcs.power_on = 1;
+                rsps->rcs.stop = 1;
                 rsps->fs.fuel_demand = 0;
                 check_N_EGT(cur_time, rotor, rsps, data);
                 data->emergency_found = 0;
-                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb);
+                check_for_emergencies(c1, cur_time, &last_event, rotor, ggen, rsps, data, mb, fout);
                 if (!data->emergency_found && !data->starting)
                 {
                     // Начинаем остановку ротора
                     sprintf(&temp_str, "Controller %d at %7.2f : Stopping APU...\n", c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     acts->set_N = 1;
                     acts->N_target = 0;
                     data->starting = 1;
@@ -1143,8 +1178,9 @@ void update_controller(
                     data->N_cur < SHUTDOWN_N * rotor->N_idle)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : APU stopped.\n", c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_APU_STOPPED;
+                    data->starting = 0;
                     data->ignited = 0;
                     acts->close_asv = 1;
                     acts->turn_off_cmd = 1;
@@ -1160,7 +1196,7 @@ void update_controller(
                 acts->turn_off_cmd = 1;
                 sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown.\n",
                     c1->id, TIME(cur_time));
-                print_to_buffer(mb, temp_str);
+                print_to_buffer(mb, temp_str, fout);
                 last_event = EVENT_EMERGENCY_SHUTDOWN_CMD;
                 break;
 
@@ -1178,7 +1214,7 @@ void update_controller(
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Attempting to relight.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_RELIGHT_ATTEMPT_CMD;
                 }
                 // Иначе пришли из нормального состояния => аварийная остановка
@@ -1187,47 +1223,73 @@ void update_controller(
                     acts->turn_off_cmd = 1;
                     sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_EMERGENCY_SHUTDOWN_CMD;
                 }
                 break;
 
             case STATE_RELIGHT:
                 check_N_EGT(cur_time, rotor, rsps, data);
-                if (phys->ignited)
+                if (ggen->flame_sensor.value)
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Flame restored.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_FLAME_RESTORED;
                     data->ignited = 1;
                     data->last_ignited = cur_time;
+                    data->flame_was_on = 1;
+                    data->last_flame_out_updated = 0;
                 }
                 else
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Failed to restore flame.\n",
                         c1->id, TIME(cur_time));
-                    print_to_buffer(mb, temp_str);
+                    print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_FLAME_WENT_OUT; 
                 }
                 break;
 
             case STATE_EMERGENCY_SHUTDOWN:
                 check_N_EGT(cur_time, rotor, rsps, data);
-                msgs->rcs.start_cmd = 0;
-                msgs->rcs.apu_power = 0;
+                rsps->rcs.power_on = 0;
+                rsps->rcs.auto_shutdown = 1;
                 acts->set_N = 1;
                 acts->N_target = 0;
                 data->ignited = 0;
                 acts->close_asv = 1;
-                acts->turn_off_cmd = 1;
+                acts->emergency_shtdn = 1;
+                data->starting = 0;
                 sprintf(&temp_str, "Controller %d at %7.2f : Emergency shutdown initiated.\n",
                     c1->id, TIME(cur_time));
-                print_to_buffer(mb, temp_str);
+                print_to_buffer(mb, temp_str, fout);
                 last_event = EVENT_POWER_OFF;
                 break;
             }
+        }
 
+        // Во включенных состояниях проверяем неисправности и сообщаем статус клапанов 
+        if (rsps->rcs.power_on)
+        {
+            wellness_check_verbose(
+                ggen, rotor, comp, fan, gen, pump, psys,
+                c1->id, cur_time,
+                data, ntfs, mb, fout);
+            rsps->mpu.apu_bleed_valve_stat = psys->bsv.sensor.value;
+            rsps->mpu.crossbleed_valve_stat = psys->fcv.sensor.value;
+            rsps->mpu.eng_bleed_valve_stat = psys->mpu_xbleed.sensor.value;
+        }
+        if (data->fault)
+            rsps->rcs.apu_fault = 1;
+        if (data->critical_fault)
+            rsps->rcs.critical_fault = 1;
+        if (data->critical_fault && last_event != EVENT_POWER_OFF && 
+            *state != STATE_EMERGENCY_START && *state != STATE_IDLE_RUN_LIMITED &&
+            *state != STATE_GEN_LIMITED && *state != STATE_MPU_START_LIMITED &&
+            *state != STATE_RELIGHT)
+        {
+            acts->turn_off_cmd = 1;
+            last_event = EVENT_EMERGENCY_SHUTDOWN_CMD;
         }
 
         // Состояние     a  b  b  b  c

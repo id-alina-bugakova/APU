@@ -126,19 +126,23 @@
     <ClCompile Include="apu_communication.c" />
     <ClCompile Include="apu_components.c" />
     <ClCompile Include="apu_controller.c" />
+    <ClCompile Include="apu_diagnostic.c" />
     <ClCompile Include="apu_driver.c" />
     <ClCompile Include="apu_interface.c" />
     <ClCompile Include="apu_manager.c" />
     <ClCompile Include="apu_math.c" />
     <ClCompile Include="apu_outer.c" />
+    <ClCompile Include="apu_scenarios.c" />
     <ClCompile Include="apu_sensors.c" />
     <ClCompile Include="apu_state_machine.c" />
+    <ClCompile Include="apu_watchdog.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apu_communication.h" />
     <ClInclude Include="apu_components.h" />
     <ClInclude Include="apu_controller.h" />
     <ClInclude Include="apu_defs.h" />
+    <ClInclude Include="apu_diagnostic.h" />
     <ClInclude Include="apu_driver.h" />
     <ClInclude Include="apu_interface.h" />
     <ClInclude Include="apu_math.h" />
@@ -146,9 +150,7 @@
     <ClInclude Include="apu_scenarios.h" />
     <ClInclude Include="apu_sensors.h" />
     <ClInclude Include="apu_state_machine.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="states_events.txt" />
+    <ClInclude Include="apu_watchdog.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

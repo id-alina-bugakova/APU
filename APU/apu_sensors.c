@@ -108,9 +108,9 @@ void update_T2(Digital_sensor* T2, int height)
 	update_digital_sensor(T2, ATMOSPHERIC_TEMP - 0.65 * height / 100);
 }
 
-void update_P2(Digital_sensor* T2, int height)
+void update_P2(Digital_sensor* P2, int height)
 {
-	update_digital_sensor(T2, ATMOSPHERIC_PRES * binpow(1 - 0.0065 * height / 288.15, 5));
+	update_digital_sensor(P2, ATMOSPHERIC_PRES * binpow(1 - 0.0065 * height / 288.15, 5));
 }
 
 void update_discrete_sensor(Discrete_sensor* sensor, bool value)

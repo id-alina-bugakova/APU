@@ -3,7 +3,7 @@
 #include "apu_communication.h"
 #include "apu_components.h"
 
-void get_physical(Physical* phys, int height, bool ignited, bool enough_pressure);
+void get_physical(Physical* phys, bool auto_start, int height, bool ignited, bool enough_pressure);
 
 
 void by_eps(

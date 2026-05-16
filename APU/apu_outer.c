@@ -1,8 +1,9 @@
 #include "apu_outer.h"
 #include "apu_components.h"
 
-void get_physical(Physical* phys, int height, bool ignited, bool enough_pressure)
+void get_physical(Physical* phys, bool auto_start, int height, bool ignited, bool enough_pressure)
 {
+    phys->auto_start = auto_start;
     phys->height = height;
     phys->ignited = ignited;
     phys->enough_pressure = enough_pressure;
@@ -133,8 +134,8 @@ void by_rcs(
     bool test, 
     bool apu_demand)
 {
-    // Ïåğâûì ñîîáùåíèåì
-    if (first_interaction)
+    // Ïåğâûì ñîîáùåíèåì èëè ïğè àâàğèéíîì îòêëş÷åíèè
+    if (first_interaction || rsp->auto_shutdown)
     {
         msg->apu_power = 0;
         msg->test = 0;

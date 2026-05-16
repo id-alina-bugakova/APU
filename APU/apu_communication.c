@@ -44,6 +44,7 @@ void init_responses(Responses* rsps)
 
 void init_actions(Actions* acts)
 {
+    acts->power_on_cmd              = 0;
     acts->turn_on_cmd               = 0;
     acts->stop_testing              = 0;
     acts->abort_start               = 0;
@@ -64,6 +65,9 @@ void init_actions(Actions* acts)
     acts->gen_demand                = 0;
     acts->mpu_start_cutoff_done     = 0;
     acts->turn_off_cmd              = 0;
+    acts->emergency_shtdn           = 0;
+    acts->power_off_cmd             = 0;
+    acts->watchdog_shutdown         = 0;
 }
 
 void init_actions_manual(Actions_manual* actm)
@@ -79,31 +83,56 @@ void init_actions_manual(Actions_manual* actm)
 
 void init_data(Data* data)
 {
-    data->prev_state            = STATE_INDEFINITE;
-    data->parent_state          = STATE_INDEFINITE;
-    data->fault                 = 0;
-    data->critical_fault        = 0;
-    data->emergency_found       = 0;
-    data->fire                  = 0;
-    data->starting              = 0;
-    data->last_start_cmd        = 0;
-    data->EGT_cur               = ATMOSPHERIC_TEMP;
-    data->N_cur                 = 0;
-    data->ovheat                = 0;
-    data->last_ovheat_detected  = 0;
-    data->demanded_fuel         = 0;
-    data->last_demanded_fuel    = 0;
-    data->ignited               = 0;
-    data->last_ignited          = 0;
-    data->cooling               = 0;
-    data->last_cooldown_start   = 0;
+    data->prev_state                = STATE_INDEFINITE;
+    data->parent_state              = STATE_INDEFINITE;
+    data->fault                     = 0;
+    data->critical_fault            = 0;
+    data->emergency_found           = 0;
+    data->fire                      = 0;
+    data->starting                  = 0;
+    data->last_start_cmd            = 0;
+    data->EGT_cur                   = ATMOSPHERIC_TEMP;
+    data->N_cur                     = 0;
+    data->ovheat                    = 0;
+    data->last_ovheat_detected      = 0;
+    data->demanded_fuel             = 0;
+    data->last_demanded_fuel        = 0;
+    data->ignited                   = 0;
+    data->last_ignited              = 0;
+    data->flame_was_on              = 0;
+    data->last_flame_out            = 0;
+    data->last_flame_out_updated    = 0;
+    data->cooling                   = 0;
+    data->last_cooldown_start       = 0;
 }
 
 void init_physical(Physical* phys)
 {
+    phys->auto_start = 0;
+    phys->fire = 0;
     phys->height = 0;
     phys->ignited = 0;
     phys->enough_pressure = 0;
+}
+
+void reset_messages(Messages* msgs)
+{
+    msgs->eps.ext_power_avail       = 0;
+    msgs->eps.gen_switch            = 0;
+    msgs->eps.apb_stat              = 0;
+    msgs->fs.fuel_avail             = 1;
+    msgs->fs.low_pres_warn          = 0;
+    msgs->air_cs.bleed_air_demand   = 0;
+    msgs->air_cs.duct_pres          = 0;
+    msgs->mpu.eng_start             = 0;
+    msgs->mpu.eng_switch            = 0;
+    msgs->mpu.eng_start_cutoff      = 0;
+    //msgs->fps.fire_sig не сбрасывается
+    msgs->rcs.apu_power             = 1;
+    msgs->rcs.test                  = 0;
+    msgs->rcs.start_cmd             = 0;
+    msgs->rcs.stop_cmd              = 0;
+    msgs->auto_cs.auto_start        = 0;
 }
 
 void copy_responses(Responses* original, Responses* copy)

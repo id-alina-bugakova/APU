@@ -53,7 +53,7 @@
 #define OVHEAT_TIME_LIMIT 20.0
 
 // Максимальные обороты ротора
-#define N_LIMIT 40000.0
+#define N_LIMIT 41000.0
 
 // Максимальное время ожидания топлива
 #define FUEL_TIME_LIMIT 10.0
@@ -62,7 +62,7 @@
 #define IGNITION_TIME_LIMIT 1
 
 // Длительность охлаждения
-#define COOLDOWN_TIME 60.0
+#define COOLDOWN_TIME 20.0 
 
 // Обороты, при которых установка считаетсся выключенной
 #define SHUTDOWN_N 0.05

@@ -80,6 +80,7 @@ void init_rotor(Rotor* rotor)
     rotor->N_idle     = 10000;
     rotor->N_work     = 39000;
     rotor->N_limited  = 32000;
+    rotor->k_EGT      = 0.2;
     rotor->EGT        = ATMOSPHERIC_TEMP;
     rotor->delta_EGT  = 0;
     rotor->N1_0_err   = 1.02;
@@ -118,7 +119,7 @@ void init_cooling_fan(Cooling_fan* fan)
     fan->fault    = 0;
     fan->k_reduct = 0.2;
     fan->N        = 0;
-    fan->k_M      = 1.4e-7;
+    fan->k_M      = 1.1e-7;
     fan->M        = 0;
     fan->k_cool   = 0.002;
 }
@@ -151,7 +152,7 @@ void init_fuel_pump(Fuel_pump* pump)
 
 void init_pneumatic_system(Pneumatic_system* psys)
 {
-    psys->P_loss = 15;
+    psys->P_loss = 0.7;
     psys->k_T    = 0.4;
 
     init_valve(&(psys->asv));
@@ -199,30 +200,29 @@ void update_starter(Starter* starter, Rotor* rotor)
 void update_PID(PID* pid, Rotor* rotor)
 {
     double N_diff = rotor->N_target - rotor->N;
-    double p, i, d;
     if (rotor->N <= PID_N)
-        p = pid->k_p[0] * N_diff;
+        pid->p = pid->k_p[0] * N_diff;
     else
-        p = pid->k_p[1] * N_diff;
+        pid->p = pid->k_p[1] * N_diff;
     // Численное интегрирование методом трапеций
     // y[n+1] = y[n] + k * T * (u[n] + u[n-1]) / 2
     if (rotor->N <= PID_N)
-        i = pid->i_prev + pid->k_i[0] * H * (N_diff + pid->N_diff_prev) / 2;
+        pid->i = pid->i_prev + pid->k_i[0] * H * (N_diff + pid->N_diff_prev) / 2;
     else
-        i = pid->i_prev + pid->k_i[1] * H * (N_diff + pid->N_diff_prev) / 2;
+        pid->i = pid->i_prev + pid->k_i[1] * H * (N_diff + pid->N_diff_prev) / 2;
     // Получено методом билинейного преобразования Тастина
     // y[n+1] = k_pid_yn * y[n] + k_d * (k_pid_un * u[n] + k_pid_un1 * u[n-1])
     if (rotor->N <= PID_N)
-        d = pid->k_pid_yn * pid->d_prev
+        pid->d = pid->k_pid_yn * pid->d_prev
             + pid->k_d[0] * (pid->k_pid_un * N_diff + pid->k_pid_un1 * pid->N_diff_prev);
     else
-        d = pid->k_pid_yn * pid->d_prev
+        pid->d = pid->k_pid_yn * pid->d_prev
             + pid->k_d[1] * (pid->k_pid_un * N_diff + pid->k_pid_un1 * pid->N_diff_prev);
     // Перевод в признак топлива и ограничение 
-    pid->fuel_feed = MAX(0, MIN(1, pid->k_fuel * (p + i + d)));
+    pid->fuel_feed = MAX(0, MIN(1, pid->k_fuel * (pid->p + pid->i + pid->d)));
     // Обновление значений для следующего шага
-    pid->i_prev = i;
-    pid->d_prev = d;
+    pid->i_prev = pid->i;
+    pid->d_prev = pid->d;
 }
 
 void update_gas_generator(
@@ -234,7 +234,7 @@ void update_gas_generator(
     // Обновление параметра и датчика пламени в камере сгорания
     bool flame_went_out = (ggen->ignited && !ggen->ignition);
     ggen->ignited = ggen->ignition;
-    if (!ggen->flame_sensor.fault)
+    if (ggen->flame_sensor.power && !ggen->flame_sensor.fault)
         update_discrete_sensor(&(ggen->flame_sensor), ggen->ignition);
     
     // Реализация транспортной задержки
@@ -294,42 +294,43 @@ void update_rotor(
     double P = M * rotor->N;
     // Вычисление целевой температуры и сохранение старой
     double EGT_old = rotor->EGT;
+    double EGT_expected = T2->value;
     if (rotor->N != 0)
-        rotor->EGT = T2->value + 7e-5 * P / (rotor->N / rotor->N_work);
+        EGT_expected = T2->value + 7e-5 * P / (rotor->N / rotor->N_work);
     // else целевая температура не изменяется
     // Вычисление охлаждения от вентилятора
     double cool = fan->k_cool * fan->N * fan->M;
     // Вычисление изменения температуры выхлопных газов
-    double delta_EGT = rotor->EGT - EGT_old - cool;
+    double delta_EGT = EGT_expected - EGT_old - cool;
 
     // Вычисление температуры выхлопных газов: численное интегрирование методом трапеций
     // y[n+1] = y[n] + k * T * (u[n] + u[n-1]) / 2
-    rotor->EGT = rotor->EGT + H * (rotor->delta_EGT + delta_EGT) / 2;
+    rotor->EGT = rotor->EGT + rotor->k_EGT * H * (rotor->delta_EGT + delta_EGT) / 2;
     // Сохранение значения изменения температуры для следующего шага
     rotor->delta_EGT = delta_EGT;
 
     // Запись показаний на датчики (с постоянной ошибкой и учетом отказов)
-    if (!rotor->N1_0.fault)
+    if (rotor->N1_0.power && !rotor->N1_0.fault)
         update_digital_sensor(&(rotor->N1_0), rotor->N * rotor->N1_0_err);
     else
         update_digital_sensor(&(rotor->N1_0), rotor->N1_0.max_value);
-    if (!rotor->N1_1.fault)
+    if (rotor->N1_1.power && !rotor->N1_1.fault)
         update_digital_sensor(&(rotor->N1_1), rotor->N * rotor->N1_1_err);
     else
         update_digital_sensor(&(rotor->N1_1), rotor->N1_1.max_value);
-    if (!rotor->EGT_A0.fault)
+    if (rotor->EGT_A0.power && !rotor->EGT_A0.fault)
         update_digital_sensor(&(rotor->EGT_A0), rotor->EGT * rotor->EGT_A0_err);
     else
         update_digital_sensor(&(rotor->EGT_A0), rotor->EGT_A0.max_value);
-    if (!rotor->EGT_A1.fault)
+    if (rotor->EGT_A1.power && !rotor->EGT_A1.fault)
         update_digital_sensor(&(rotor->EGT_A1), rotor->EGT * rotor->EGT_A1_err);
     else
         update_digital_sensor(&(rotor->EGT_A1), rotor->EGT_A1.max_value);
-    if (!rotor->EGT_B0.fault)
+    if (rotor->EGT_B0.power && !rotor->EGT_B0.fault)
         update_digital_sensor(&(rotor->EGT_B0), rotor->EGT * rotor->EGT_B0_err);
     else
         update_digital_sensor(&(rotor->EGT_B0), rotor->EGT_B0.max_value);
-    if (!rotor->EGT_B1.fault)
+    if (rotor->EGT_B1.power && !rotor->EGT_B1.fault)
         update_digital_sensor(&(rotor->EGT_B1), rotor->EGT * rotor->EGT_B1_err);
     else
         update_digital_sensor(&(rotor->EGT_B1), rotor->EGT_B1.max_value);
@@ -343,15 +344,19 @@ void update_compressor(Compressor* comp, Rotor* rotor, Pneumatic_system* psys)
     if (comp->bleed)
         comp->M = comp->M * comp->k_inc;
     comp->P = psys->P2.value + comp->k_NP * binpow(rotor->N, 2);
-    comp->T = (KELVIN + psys->T2.value) 
-        * (comp->k_T1 * comp->P / psys->P2.value + comp->k_T2) - KELVIN;
+    if(!DOUBLE_EQUALS(psys->P2.value, 0.0, COMP_CONST))
+        comp->T = (KELVIN + psys->T2.value) 
+            * (comp->k_T1 * comp->P / psys->P2.value + comp->k_T2) - KELVIN;
+    else
+        comp->T = (KELVIN + psys->T2.value)
+        * (comp->k_T1 * 1 + comp->k_T2) - KELVIN;
 
     // Запись показаний на датчики
-    if(!comp->P3.fault)
+    if(comp->P3.power && !comp->P3.fault)
         update_digital_sensor(&(comp->P3), comp->P);
     else
         update_digital_sensor(&(comp->P3), comp->P3.max_value);
-    if (!comp->T3.fault)
+    if (comp->T3.power && !comp->T3.fault)
         update_digital_sensor(&(comp->T3), comp->T);
     else
         update_digital_sensor(&(comp->T3), comp->T3.max_value);
@@ -367,7 +372,7 @@ void update_cooling_fan(Cooling_fan* fan, Rotor* rotor)
         fan->N = fan_N;
 
         // Расчет момента
-        fan->M = fan->k_M * binpow(fan_N, 2);
+        fan->M = fan->k_M * fan_N * fan_N;
     }
     // Отказ
     else
@@ -388,7 +393,8 @@ void update_generator(Generator* gen, Rotor* rotor)
     else
         gen->M = 0;
 
-    update_digital_sensor(&(gen->NGC), gen->on * gen->N_own);
+    if(gen->NGC.power && !gen->NGC.fault)
+        update_digital_sensor(&(gen->NGC), gen->on * gen->N_own);
 }
 
 void update_fuel_pump(
@@ -433,10 +439,11 @@ void update_fuel_pump(
     // Обновляем значение датчика положения
     update_discrete_sensor(&(pump->fuel_sov.sensor), pump->fuel_sov.open);
     // Обновляем значение датчика давления топлива (если неполадка, то давления нет)
-    if (!pump->fault && !(pump->fuel_sov.fault && !pump->fuel_sov.open) && pump->on)
-        update_discrete_sensor(&(pump->P_fuel), 1);
-    else
-        update_discrete_sensor(&(pump->P_fuel), 0);
+    if (pump->P_fuel.power && !pump->P_fuel.fault)
+        if (!pump->fault && !(pump->fuel_sov.fault && !pump->fuel_sov.open) && pump->on)
+            update_discrete_sensor(&(pump->P_fuel), 1);
+        else
+            update_discrete_sensor(&(pump->P_fuel), 0);
 }
 
 void update_pneumatic_system(
@@ -445,8 +452,10 @@ void update_pneumatic_system(
     Compressor* comp)
 {
     // Обновляем датчики атмосферной температуры и давления
-    update_T2(&(psys->T2), height);
-    update_P2(&(psys->P2), height);
+    if(psys->T2.power && !psys->T2.fault)
+        update_T2(&(psys->T2), height);
+    if (psys->P2.power && !psys->P2.fault)
+        update_P2(&(psys->P2), height);
 
     // Если есть питание и клапан забора атмосферного воздуха не заклинил, его можно переместить
     if (psys->asv.power && !psys->asv.fault)
@@ -454,7 +463,8 @@ void update_pneumatic_system(
             psys->asv.open = 1;
         else if(psys->asv.close_cmd)
             psys->asv.open = 0;
-    update_discrete_sensor(&(psys->asv), psys->asv.open);
+    if(psys->asv.sensor.power && !psys->asv.sensor.fault)
+        update_discrete_sensor(&(psys->asv.sensor), psys->asv.open);
 
     // Аналогично с входным клапаном пневмосистемы
     if (psys->bsv.power && !psys->bsv.fault)
@@ -462,16 +472,19 @@ void update_pneumatic_system(
             psys->bsv.open = 1;
         else if (psys->bsv.close_cmd)
             psys->bsv.open = 0;
-    update_discrete_sensor(&(psys->bsv), psys->bsv.open);
+    if (psys->bsv.sensor.power && !psys->bsv.sensor.fault)
+        update_discrete_sensor(&(psys->bsv.sensor), psys->bsv.open);
 
     // Обновляем параметры воздуха на входе в пневмосистему
     // Если один из клапанов закрыт, то давление подаваемого воздуха 0
-    if (!psys->asv.open || !psys->bsv.open)
-        update_digital_sensor(&(psys->P_duct), 0);
-    else
-        update_digital_sensor(&(psys->P_duct), psys->P2.value - psys->P_loss);
-    update_digital_sensor(&(psys->T_duct),
-        psys->T2.value + (comp->T3.value - psys->T2.value) * psys->k_T);
+    if(psys->P_duct.power && !psys->P_duct.fault)
+        if (!psys->asv.open || !psys->bsv.open)
+            update_digital_sensor(&(psys->P_duct), 0);
+        else
+            update_digital_sensor(&(psys->P_duct), psys->P2.value * psys->P_loss);
+    if (psys->T_duct.power && !psys->T_duct.fault)
+        update_digital_sensor(&(psys->T_duct),
+            psys->T2.value + (comp->T3.value - psys->T2.value) * psys->k_T);
 
     // Аналогичное управление перекрестными клапанами
     if (psys->fcv.power && !psys->fcv.fault)
@@ -479,13 +492,15 @@ void update_pneumatic_system(
             psys->fcv.open = 1;
         else if (psys->fcv.close_cmd)
             psys->fcv.open = 0;
-    update_discrete_sensor(&(psys->fcv), psys->fcv.open);
+    if (psys->fcv.sensor.power && !psys->fcv.sensor.fault)
+        update_discrete_sensor(&(psys->fcv.sensor), psys->fcv.open);
     if (psys->mpu_xbleed.power && !psys->mpu_xbleed.fault)
         if (psys->mpu_xbleed.open_cmd)
             psys->mpu_xbleed.open = 1;
         else if (psys->mpu_xbleed.close_cmd)
             psys->mpu_xbleed.open = 0;
-    update_discrete_sensor(&(psys->mpu_xbleed), psys->mpu_xbleed.open);
+    if (psys->mpu_xbleed.sensor.power && !psys->mpu_xbleed.sensor.fault)
+        update_discrete_sensor(&(psys->mpu_xbleed.sensor), psys->mpu_xbleed.open);
 
     // Сбрасываем команды
     psys->asv.open_cmd = 0;

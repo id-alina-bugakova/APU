@@ -158,6 +158,7 @@ typedef struct {
 *  Действия выполняются менеджером после отработки контроллера 
 */
 typedef struct {
+    bool power_on_cmd;                  ///< Подача питания на ВСУ
     bool turn_on_cmd;                   ///< Запуск ВСУ
     bool stop_testing;                  ///< Тестирование завершено
     bool abort_start;                   ///< Команда прерывания запуска
@@ -178,6 +179,9 @@ typedef struct {
     bool gen_demand;                    ///< Запрос на генератор
     bool mpu_start_cutoff_done;         ///< Сообщение о завершении страта МСУ
     bool turn_off_cmd;                  ///< Остановка ВСУ
+    bool emergency_shtdn;               ///< Аварийная остановка ВСУ
+    bool power_off_cmd;                 ///< Отключение ВСУ
+    bool watchdog_shutdown;             ///< Остановка watchdog
 } Actions;
 
 typedef struct {
@@ -210,7 +214,10 @@ typedef struct {
     bool demanded_fuel;                 ///< Признак запроса топлива
     uint32_t last_demanded_fuel;        ///< Последнее время запроса топлива
     bool ignited;                       ///< Признак наличия зажигания
-    uint32_t last_ignited;                  ///< Последнее время зажигания
+    uint32_t last_ignited;              ///< Последнее время зажигания
+    bool flame_was_on;                  ///< Признак того, что в камере сгорания появлялся факел
+    uint32_t last_flame_out;            ///< Последнее время погасания факела
+    bool last_flame_out_updated;        ///< Последнее время погасания факела
     bool cooling;                       ///< Признак охлаждения
     uint32_t last_cooldown_start;       ///< Время начала последнего охлаждения
 } Data;
@@ -218,7 +225,9 @@ typedef struct {
 /* @brief Физические параметры
 */
 typedef struct {
-    int height;                         ///< Текущая высота
+    bool auto_start;                    ///< Автоматический запуск
+    bool fire;                          ///< Пожар в отсеке
+    unsigned int height;                ///< Текущая высота
     bool ignited;                       ///< Признак наличия зажигания
     bool enough_pressure;               ///< Достаточно ли давления для СКВ/МСУ
 } Physical;
@@ -235,5 +244,7 @@ void init_actions_manual(Actions_manual* actm);
 void init_data(Data* data);
 
 void init_physical(Physical* phys);
+
+void reset_messages(Messages* msgs);
 
 void copy_responses(Responses* original, Responses* copy);

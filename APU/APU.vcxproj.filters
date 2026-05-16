@@ -45,6 +45,15 @@
     <ClCompile Include="apu_driver.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="apu_scenarios.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="apu_watchdog.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="apu_diagnostic.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apu_state_machine.h">
@@ -80,8 +89,11 @@
     <ClInclude Include="apu_scenarios.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="states_events.txt" />
+    <ClInclude Include="apu_watchdog.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="apu_diagnostic.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
