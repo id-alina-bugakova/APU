@@ -3,6 +3,8 @@
 
 void get_physical(Physical* phys, bool auto_start, int height, bool ignited, bool enough_pressure)
 {
+    if (auto_start)
+        auto_start = 1;
     phys->auto_start = auto_start;
     phys->height = height;
     phys->ignited = ignited;
@@ -147,28 +149,27 @@ void by_rcs(
         if (power)
         {
             msg->apu_power = 1;
-            // В ручном режиме не выдаем команды
-            // Если есть запрос и ВСУ выключена, включаем
-            if (!manual && apu_demand && (state == STATE_OFF || state == STATE_IDLE))
-            {
-                msg->test = 0;
-                msg->start_cmd = 1;
-                msg->stop_cmd = 0;
-            }
-            // Если есть запрос и ВСУ включена, выключаем
-            else if (!manual && !apu_demand && state != STATE_OFF && state != STATE_IDLE)
-            {
-                msg->test = 0;
-                msg->start_cmd = 0;
-                msg->stop_cmd = 1;
-            }
-            // Если есть запрос на тестирование
-            else if (!manual && test)
-            {
-                msg->test = 1;
-                msg->start_cmd = 0;
-                msg->stop_cmd = 0;
-            }
+            //// Если есть запрос и ВСУ выключена, включаем
+            //if (!manual && apu_demand && (state == STATE_OFF || state == STATE_IDLE))
+            //{
+            //    msg->test = 0;
+            //    msg->start_cmd = 1;
+            //    msg->stop_cmd = 0;
+            //}
+            //// Если есть запрос и ВСУ включена, выключаем
+            //else if (!manual && !apu_demand && state != STATE_OFF && state != STATE_IDLE)
+            //{
+            //    msg->test = 0;
+            //    msg->start_cmd = 0;
+            //    msg->stop_cmd = 1;
+            //}
+            //// Если есть запрос на тестирование
+            //else if (!manual && test)
+            //{
+            //    msg->test = 1;
+            //    msg->start_cmd = 0;
+            //    msg->stop_cmd = 0;
+            //}
         }
         // Если питания нет/пропало
         else

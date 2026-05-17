@@ -98,13 +98,24 @@ void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
     rsps->rcs.N1 = data->N_cur;
     rsps->rcs.EGT = data->EGT_cur;
     // Фиксируем перегрев или его отсутствие
-    if (data->EGT_cur > EGT_LIMIT && !data->ovheat)
+    if (data->EGT_cur > EGT_LIMIT && 
+        !DOUBLE_EQUALS(data->EGT_cur, rotor->EGT_A0.max_value, COMP_CONST) && !data->ovheat)
     {
         data->ovheat = 1;
         data->last_ovheat_detected = cur_time;
     }
-    else if (data->EGT_cur < EGT_LIMIT)
+    else if (data->EGT_cur < EGT_LIMIT &&
+        !DOUBLE_EQUALS(data->EGT_cur, rotor->EGT_A0.max_value, COMP_CONST))
         data->ovheat = 0;
+    if (data->N_cur > N_LIMIT &&
+        !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST) && !data->ovspeed)
+    {
+        data->ovspeed = 1;
+        data->last_ovspeed_detected = cur_time;
+    }
+    else if(data->N_cur < N_LIMIT &&
+        !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST))
+        data->ovspeed = 0;
 }
 
 /* @brief Проверка наличия аварийных состояний (нормальный запуск)
@@ -130,6 +141,7 @@ void check_for_emergencies(
 {
     // Обработка аварийных состояний
     if (data->EGT_cur > EGT_LIMIT &&
+        !DOUBLE_EQUALS(data->EGT_cur, rotor->EGT_A0.max_value, COMP_CONST) &&
         TIME(cur_time) > TIME(data->last_ovheat_detected) + OVHEAT_TIME_LIMIT)
     {
         char temp_str[STRING_LEN];
@@ -142,7 +154,9 @@ void check_for_emergencies(
         data->demanded_fuel = 0;
         data->emergency_found = 1;
     }
-    else if (data->N_cur > N_LIMIT)
+    else if (data->N_cur > N_LIMIT &&
+        !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST) &&
+        TIME(cur_time) > TIME(data->last_ovspeed_detected) + OVSPEED_TIME_LIMIT)
     {
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Emergency: rotor overspeed.\n",
@@ -214,6 +228,7 @@ void check_for_emergencies_emergent(
         enfs->fire = 1;
     }
     if (!enfs->ovheat && data->EGT_cur > EGT_LIMIT &&
+        !DOUBLE_EQUALS(data->EGT_cur, rotor->EGT_A0.max_value, COMP_CONST) &&
         TIME(cur_time) > TIME(data->last_ovheat_detected) + OVHEAT_TIME_LIMIT)
     {
         char temp_str[STRING_LEN];
@@ -224,7 +239,9 @@ void check_for_emergencies_emergent(
     }
     else if (data->EGT_cur < EGT_LIMIT)
         enfs->ovheat = 0;
-    if (!enfs->ovspeed && data->N_cur > N_LIMIT)
+    if (!enfs->ovspeed && data->N_cur > N_LIMIT &&
+        !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST) &&
+        TIME(cur_time) > TIME(data->last_ovspeed_detected) + OVSPEED_TIME_LIMIT)
     {
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "Controller %d at %7.2f : Warning: rotor overspeed.\n",
@@ -333,7 +350,7 @@ void update_controller(
                 enfs->ovtime = 0;
                 if (!msgs->rcs.apu_power)
                 {
-                    sprintf(&temp_str, "Controller %d at %7.2f : Turning OFF.\n",
+                    sprintf(&temp_str, "Controller %d at %7.2f : Turned OFF.\n",
                         c1->id, TIME(cur_time));
                     print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_POWER_OFF;
@@ -343,21 +360,24 @@ void update_controller(
                 {
                     if (data->fire)
                     {
-                        sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to fire.\n",
+                        sprintf(&temp_str, 
+                            "Controller %d at %7.2f : Unable to auto start due to fire.\n",
                             c1->id, TIME(cur_time));
                         print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else if (phys->height >= CRITICAL_HEIGHT)
                     {
-                        sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to height.\n",
+                        sprintf(&temp_str, 
+                            "Controller %d at %7.2f : Unable to auto start due to height.\n",
                             c1->id, TIME(cur_time));
                         print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
                     }
                     else if (!msgs->fs.fuel_avail || msgs->fs.low_pres_warn)
                     {
-                        sprintf(&temp_str, "Controller %d at %7.2f : Unable to auto start due to fuel issues.\n",
+                        sprintf(&temp_str, 
+                            "Controller %d at %7.2f : Unable to auto start due to low fuel pressure.\n",
                             c1->id, TIME(cur_time));
                         print_to_buffer(mb, temp_str, fout);
                         last_event = EVENT_NONE;
@@ -456,7 +476,7 @@ void update_controller(
                 check_N_EGT(cur_time, rotor, rsps, data);
                 /* Варианты развития событий, приводящие к отмене запуска: запуск прерван, 
                 *  превышено макс. время запуска, перегрев дольше OVHEAT_TIME_LIMIT с,
-                *  разнос ротора, погасание факела в камере сгорания
+                *  разнос ротора дольше OVSPEED_TIME_LIMIT, погасание факела в камере сгорания
                 */
                 // Если восстанавливается пламя, сбрасываем отслеживание последнего погасания
                 if (ggen->flame_sensor.value)
@@ -504,6 +524,7 @@ void update_controller(
                     }
                 }
                 else if (data->EGT_cur > EGT_LIMIT &&
+                    !DOUBLE_EQUALS(data->EGT_cur, rotor->EGT_A0.max_value, COMP_CONST) &&
                     TIME(cur_time) > TIME(data->last_ovheat_detected) + OVHEAT_TIME_LIMIT)
                 {
                     if (*state != STATE_EMERGENCY_START)
@@ -527,7 +548,9 @@ void update_controller(
                         enfs->ovheat = 1;
                     }
                 }
-                else if (data->N_cur > N_LIMIT)
+                else if (data->N_cur > N_LIMIT &&
+                    !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST) &&
+                    TIME(cur_time) > TIME(data->last_ovspeed_detected) + OVSPEED_TIME_LIMIT)
                 {
                     if (*state != STATE_EMERGENCY_START)
                     {
@@ -613,7 +636,8 @@ void update_controller(
                     }
                 }
                 // Корректное завершение запуска: малые обороты набраны
-                else if (data->N_cur >= rotor->N_idle - N_COMP_CONST)
+                else if (data->N_cur >= rotor->N_idle - N_COMP_CONST &&
+                    !DOUBLE_EQUALS(data->N_cur, rotor->N1_0.max_value, COMP_CONST))
                 {
                     sprintf(&temp_str, "Controller %d at %7.2f : Start success.\n",
                         c1->id, TIME(cur_time));
@@ -1208,7 +1232,7 @@ void update_controller(
                 // Отмечаем начала охлаждения
                 if (!data->cooling)
                 {
-                    sprintf(&temp_str, "Controller %d at %7.2f : Starting cooldown.\n",
+                    sprintf(&temp_str, "Controller %d at %7.2f : Starting cooldown...\n",
                         c1->id, TIME(cur_time));
                     print_to_buffer(mb, temp_str, fout);
                     data->last_cooldown_start = cur_time;
@@ -1263,7 +1287,7 @@ void update_controller(
                 // Отключаем горение и подачу топлива
                 data->ignited = 0;
                 acts->turn_off_cmd = 1;
-                sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown.\n",
+                sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown...\n",
                     c1->id, TIME(cur_time));
                 print_to_buffer(mb, temp_str, fout);
                 last_event = EVENT_EMERGENCY_SHUTDOWN_CMD;
@@ -1281,7 +1305,7 @@ void update_controller(
                     data->parent_state == STATE_RELIGHT) &&
                     !msgs->rcs.stop_cmd)
                 {
-                    sprintf(&temp_str, "Controller %d at %7.2f : Attempting to relight.\n",
+                    sprintf(&temp_str, "Controller %d at %7.2f : Attempting to relight...\n",
                         c1->id, TIME(cur_time));
                     print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_RELIGHT_ATTEMPT_CMD;
@@ -1290,7 +1314,7 @@ void update_controller(
                 else
                 {
                     acts->turn_off_cmd = 1;
-                    sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown.\n",
+                    sprintf(&temp_str, "Controller %d at %7.2f : Initiating emergency shutdown...\n",
                         c1->id, TIME(cur_time));
                     print_to_buffer(mb, temp_str, fout);
                     last_event = EVENT_EMERGENCY_SHUTDOWN_CMD;
@@ -1338,7 +1362,7 @@ void update_controller(
         }
 
         // Во включенных состояниях проверяем неисправности и сообщаем статус клапанов 
-        if (rsps->rcs.power_on)
+        if (rsps->rcs.power_on && *state != STATE_IDLE)
         {
             wellness_check_verbose(
                 ggen, rotor, comp, fan, gen, pump, psys,
@@ -1352,7 +1376,8 @@ void update_controller(
             rsps->rcs.apu_fault = 1;
         if (data->critical_fault)
             rsps->rcs.critical_fault = 1;
-        if (data->critical_fault && last_event != EVENT_POWER_OFF && 
+        if (data->critical_fault && 
+            rsps->rcs.power_on && last_event != EVENT_POWER_OFF  &&
             *state != STATE_EMERGENCY_START && *state != STATE_IDLE_RUN_LIMITED &&
             *state != STATE_GEN_LIMITED && *state != STATE_MPU_START_LIMITED &&
             *state != STATE_RELIGHT)

@@ -54,6 +54,8 @@
 
 // Максимальные обороты ротора
 #define N_LIMIT 41000.0
+// 
+#define OVSPEED_TIME_LIMIT 1.0
 
 // Максимальное время ожидания топлива
 #define FUEL_TIME_LIMIT 10.0

@@ -4,35 +4,38 @@
 
 #include <stdbool.h>
 #include "apu_defs.h"
-
-typedef struct {
-    char key1;
-    char key2;
-    char key3;
-} Keys;
-
-typedef struct {
-    bool power;
-    bool test;
-    bool start_stop;
-    bool bleed;
-    bool gen;
-    bool mpu;
-    bool fire;
-    unsigned int height;
-    bool ignition;
-    bool enough_pres;
-    bool c0;
-    bool c1;
-    char faults;
-} Sc_commands;
+#include "apu_communication.h"
+#include "apu_controller.h"
 
 typedef struct {
     char path[N_SCENARIOS][STRING_LEN];
+    int n;
     long pos;
-    bool finished;
-} Scenarios;
+} Fin_scenario;
 
-void init_scenarios(Scenarios* scns);
+typedef struct
+{
+    bool first_record;
+    char path[STRING_LEN];
+} Fout_scenario;
 
-void start_scenario(int n, Scenarios* scns, Keys* k);
+void init_fin_scenario(Fin_scenario* fis);
+
+void init_fout_scenario(Fout_scenario* fos);
+
+void write_scenario(
+    Fout_scenario* fos, 
+    Physical* phys, 
+    Actions_manual* actm, 
+    bool test,
+    bool c0_fault, 
+    bool c1_fault, 
+    char fault);
+
+void start_scenario(
+    Fin_scenario* scns,
+    APU* apu,
+    Actions_manual* actm,
+    Physical* phys,
+    ECU* c0,
+    ECU* c1);

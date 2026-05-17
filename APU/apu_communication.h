@@ -211,6 +211,8 @@ typedef struct {
     double N_cur;                       ///< Текущие обороты ротора
     bool ovheat;                        ///< Признак перегрева
     uint32_t last_ovheat_detected;      ///< Последнее время обнаружения перегрева
+    bool ovspeed;                       ///< Признак разноса ротора
+    uint32_t last_ovspeed_detected;     ///< Последнее время обнаружения разноса ротора
     bool demanded_fuel;                 ///< Признак запроса топлива
     uint32_t last_demanded_fuel;        ///< Последнее время запроса топлива
     bool ignited;                       ///< Признак наличия зажигания
@@ -232,7 +234,6 @@ typedef struct {
     bool ignited;                       ///< Признак наличия зажигания
     bool enough_pressure;               ///< Достаточно ли давления для СКВ/МСУ
 } Physical;
-
 
 void init_messages(Messages* msgs);
 

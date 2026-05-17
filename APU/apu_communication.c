@@ -95,6 +95,8 @@ void init_data(Data* data)
     data->N_cur                     = 0;
     data->ovheat                    = 0;
     data->last_ovheat_detected      = 0;
+    data->ovspeed                   = 0;
+    data->last_ovspeed_detected     = 0;
     data->demanded_fuel             = 0;
     data->last_demanded_fuel        = 0;
     data->ignited                   = 0;
@@ -112,8 +114,8 @@ void init_physical(Physical* phys)
     phys->auto_start = 0;
     phys->fire = 0;
     phys->height = 0;
-    phys->ignited = 0;
-    phys->enough_pressure = 0;
+    phys->ignited = 1;
+    phys->enough_pressure = 1;
 }
 
 void reset_messages(Messages* msgs)

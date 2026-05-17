@@ -76,6 +76,8 @@
 #define TIME_FORMAT "%.2f s (%d tacts)        "             // Форматная строка для времени
 
 // Положения отдельных элементов (начиная с 0, X - колонка, Y - строка)
+#define SCENARIO_MODE_SHORTER 8
+
 #define POS_X_GENERAL_COL 12
 #define POS_Y_STATE 1
 #define POS_Y_HEIGHT (POS_Y_STATE + 1)
@@ -274,8 +276,8 @@ typedef struct
     char psys_T2[STRING_LEN];
     char psys_P_duct[STRING_LEN];
     char psys_T_duct[STRING_LEN];
-    char temp[STRING_LEN];
-    bool first_log;                     ///<
+    char temp[STRING_LEN];        
+    bool first_log;            
     char log[STRING_LEN];
 } File_output;
 
@@ -297,6 +299,7 @@ void move_to(int x, int y);
 
 // Основная функция вывода
 void printer(
+    bool manual_mode,
     Output* out,
     Message_buffer* mb,
     Responses* rsps,
@@ -313,8 +316,10 @@ void printer(
     APU* apu,
     APU* prev_apu);
 
+int get_scenario();
+
 // Обработка ввода
-void handle_key_press(
+char handle_key_press(
     char key,
     bool manual_mode,
     Output* out,

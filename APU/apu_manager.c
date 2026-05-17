@@ -18,6 +18,7 @@
 #include "apu_driver.h"
 #include "apu_interface.h"
 #include "apu_watchdog.h"
+#include "apu_scenarios.h"
 
 
 void manager_cyclic()
@@ -60,6 +61,11 @@ void manager_cyclic()
     init_problem_notifications(&ntfs);
     init_emergency_notification(&enfs);
 
+    Fin_scenario fis;
+    Fout_scenario fos;
+    init_fin_scenario(&fis);
+    init_fout_scenario(&fos);
+
     // Предыдущие состояния для вывода
     APU prev_apu;
     init_APU(&prev_apu);
@@ -69,6 +75,9 @@ void manager_cyclic()
     Responses prev_rsps;
     init_responses(&prev_rsps);
     int prev_height = 0;
+
+    char fault = '0';
+    bool finished = 0;
 
     printf("============================================================\n");
     printf("  - Press S - select scenario\n");
@@ -82,7 +91,7 @@ void manager_cyclic()
         key = _getch();
     
     bool manual_mode = (key == 'M');
-    int scenario = -1;
+    fis.n = -1;
 
     if (manual_mode)
     {
@@ -90,49 +99,53 @@ void manager_cyclic()
         Sleep(500);
     }
     else
-        scenario = get_scenario();
+        fis.n = get_scenario(&fis);
     // Если из выбора сценариев вернулись в ручной режим
-    if (scenario == -1)
+    if (fis.n == -1)
         manual_mode = ON;
 
     for (int i = 1; 1; i++)
     {
+        fault = '0';
         fflush(stdout);
+
+        if (!manual_mode)
+            start_scenario(&fis, &apu, &actm, &phys, &c0, &c1);
+
         printer(
-            &out, &mb, &rsps, &prev_rsps, 
+            manual_mode, &out, &mb, &rsps, &prev_rsps, 
             i, phys.height, &prev_height, state, &prev_state, 
             c0.fault, &c0_fault_prev, c1.fault, &c1_fault_prev,
             &apu, &prev_apu);
         if (_kbhit())
         {
             key = _getch();
-            handle_key_press(
+            fault = handle_key_press(
                 key, manual_mode, &out, &fout, &mb, state, (!c0.power && !c1.power), 
                 &(c0.fault), &(c1.fault),
                 &apu, &phys, &actm);
         }
 
+        // Обновляем watchdog
+        update_watchdog(&wd, i, &c0, &c1, &acts, &mb, &fout);
+
+        // Получаем физику
+        get_physical(&phys, phys.auto_start, phys.height, phys.ignited, phys.enough_pressure);
         // Собираем сообщения
         by_eps(&(msgs.eps), &(rsps.eps), &(apu.gen), (i == 1), 0, actm.gen);
         by_fs(&(msgs.fs), (i == 1), 0);
         by_air_cs(&(msgs.air_cs), &(rsps.air_cs), (i == 1), actm.bleed, 0);
         by_mpu(&(msgs.mpu), &(rsps.mpu), (i == 1), actm.mpu_start, 0);
-        by_fps(&(msgs.fps), 0);
+        by_fps(&(msgs.fps), phys.fire);
         by_rcs(&(msgs.rcs), &(rsps.rcs), state, (i == 1), manual_mode, actm.power, actm.test, 1);
-        by_auto_cs(&(msgs.auto_cs), 0);
-        // Получаем физику
-        if (manual_mode && i != 1)
-            get_physical(&phys, phys.auto_start, phys.height, phys.ignited, phys.enough_pressure);
-        else
-            get_physical(&phys, 0, 0, 1, 1);
+        by_auto_cs(&(msgs.auto_cs), phys.auto_start);
 
-        // Выполняем действия вручную, если ручной режим
-        if(manual_mode)
-            perform_manual_actions(
-                &actm, &phys, &msgs, &data, &ntfs, state,
-                &c0, &c1,
-                &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
-                &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys));
+        // Выполняем действия вручную
+        perform_manual_actions(
+            &actm, &phys, &msgs, &data, &ntfs, state,
+            &c0, &c1,
+            &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
+            &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys));
 
         // Обновляем контроллеры
         update_controller(
@@ -145,9 +158,6 @@ void manager_cyclic()
             &(apu.start), &(apu.ggen), &(apu.rotor), &(apu.comp),
             &(apu.fan), &(apu.gen), &(apu.pump), &(apu.psys),
             &msgs, &rsps, &acts, &data, &phys, &ntfs, &enfs, &mb, &fout);
-
-        // Обновляем watchdog
-        update_watchdog(&wd, i, &c0, &c1, &acts, &mb, &fout);
         
         // Выполняем действия
         perform_actions(
@@ -161,6 +171,7 @@ void manager_cyclic()
 
         // Логируем состояния агрегатов ВСУ
         write_files(&fout, &apu);
+        write_scenario(&fos, &phys, &actm, msgs.rcs.test, c0.fault, c1.fault, fault);
 
         Sleep(SLEEP_TIME);
     }

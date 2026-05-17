@@ -192,6 +192,7 @@ void move_to(int x, int y)
 }
 
 void printer(
+    bool manual_mode,
     Output* out,
     Message_buffer* mb,
     Responses* rsps,
@@ -229,16 +230,24 @@ void printer(
                 printf("%s", detailed_layout[i]);
         }
         // Выводим команды
-        printf("  - Press S - stop/start simulation\n");
-        printf("  - Press D - toggle detailed output mode\n");
-        printf("    Press p - power ON/OFF\n");
-        printf("    Press c - change physical parameters (e.g. height)\n");
-        printf("    Press t - conduct testing\n");
-        printf("    Press r - reset fault parameters\n");
-        printf("    Press s - start/stop APU\n");
-        printf("    Press b - toggle air bleed\n");
-        printf("    Press g - toggle generator\n");
-        printf("    Press m - start/stop MPU\n");
+        if (manual_mode)
+        {
+            printf("  - Press S - stop/start simulation\n");
+            printf("  - Press D - toggle detailed output mode\n");
+            printf("    Press p - power ON/OFF\n");
+            printf("    Press c - change physical parameters (e.g. height)\n");
+            printf("    Press t - conduct testing\n");
+            printf("    Press r - reset fault parameters\n");
+            printf("    Press s - start/stop APU\n");
+            printf("    Press b - toggle air bleed\n");
+            printf("    Press g - toggle generator\n");
+            printf("    Press m - start/stop MPU\n");
+        }
+        else
+        {
+            printf("  - Press S - stop/start simulation\n");
+            printf("  - Press D - toggle detailed output mode\n");
+        }
         printf("%s\n", out->detailed_output? detailed_layout[0] : normal_layout[0]);
 
         fflush(stdout);
@@ -949,9 +958,9 @@ void printer(
     if (mb->updated || !out->setup_done)
     {
         if (!out->detailed_output)
-            move_to(0, out->normal_message_begin - 1);
+            move_to(0, out->normal_message_begin - 1 - (manual_mode? 0 : SCENARIO_MODE_SHORTER));
         else
-            move_to(0, out->detailed_message_begin - 1);
+            move_to(0, out->detailed_message_begin - 1 - (manual_mode ? 0 : SCENARIO_MODE_SHORTER));
         // Очистить от курсора до конца экрана
         printf("\033[0J");
         for (int i = 0; i < mb->filled; i++)
@@ -980,10 +989,11 @@ void scenario_menu()
     printf("              generator, then MPU\n");
     printf("    Press 2 - bleed shutoff valve jam detected during test,\n");
     printf("              launch impossible\n");
-    printf("    Press 3 - manual run on ground, ACS, then cooling fan\n");
-    printf("              failure, overheat\n");
-    printf("    Press 4 - manual run on ground, fuel pump failure\n");
-    printf("    Press 5 - manual run on ground, ACS + genrator, then\n");
+    printf("    Press 3 - manual run on ground, ACS + generator, then \n");
+    printf("              cooling fan failure, overheat\n");
+    printf("    Press 4 - manual run on ground, supplying MPU, then \n");
+    printf("              fuel pump failure \n");
+    printf("    Press 5 - manual run on ground, ACS + generator, then\n");
     printf("              main ECU channel failure, then loss of\n");
     printf("              control, watchdog shutdown\n");
     printf("    Press 6 - manual run in the air, supplies generator,\n");
@@ -997,11 +1007,11 @@ void scenario_menu()
     printf("============================================================\n");
 }
 
-int get_scenario(Scenarios* scns)
+int get_scenario()
 {
     scenario_menu();
     char key = _getch();
-    while (!(key >= '1' && key <= '8' || key == 'D' || key != 'M'))
+    while (!(key >= '1' && key <= '8' || key == 'D' || key == 'M'))
         key = _getch();
     if (key == 'M')
         return  -1;
@@ -1105,7 +1115,7 @@ void toggle_fault_menu(APU* apu)
     printf("============================================================\n");
 }
 
-void handle_key_press(
+char handle_key_press(
     char key, 
     bool manual_mode, 
     Output* out, 
@@ -1120,6 +1130,7 @@ void handle_key_press(
     Actions_manual* actm)
 {
     const char* apu_states[] = APU_STATES;
+    char fault = '0';
 
     if (key == 'S')
     {
@@ -1131,14 +1142,14 @@ void handle_key_press(
         system("cls");
         out->setup_done = 0;
     }
-    if (manual_mode)
+    else if (key == 'D')
     {
-        if (key == 'D')
-        {
-            out->detailed_output = !out->detailed_output;
-            out->setup_done = 0;
-        }
-        else if (key == 'p')
+        out->detailed_output = !out->detailed_output;
+        out->setup_done = 0;
+    }
+    else if (manual_mode)
+    {
+        if (key == 'p')
         {
             if (power && state == STATE_OFF)
             {
@@ -1248,6 +1259,7 @@ void handle_key_press(
                         // Обновление вывода
                         if (key3 >= 'a' && key3 <= 'y')
                         {
+                            fault = key3;
                             system("cls");
                             toggle_fault_menu(apu);
                         }
@@ -1375,4 +1387,5 @@ void handle_key_press(
             }
         }
     }
+    return fault;
 }
