@@ -4,11 +4,8 @@
 *  @detail Файл содержит код функции, описывающей переход между состояниями.
 *
 *  @author Бугакова А.А.
-* 
-*  @example
-*  int state_machine = STATE_OFF;
-*  state_machine = handle_event(state_machine, POWER_ON, 0);
 */
+
 
 #include "apu_state_machine.h"
 

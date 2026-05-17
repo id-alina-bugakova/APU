@@ -1,5 +1,16 @@
+/* @file   apu_outer.c
+*  @brief  Код функций имитации внешних систем
+*
+*  @detail Файл содержит код функций, принимающих базовые решения об управлении на основе
+*  получаемых ответов и физичсеких признаков.
+*
+*  @author Бугакова А.А.
+*/
+
+
 #include "apu_outer.h"
 #include "apu_components.h"
+
 
 void get_physical(Physical* phys, bool auto_start, int height, bool ignited, bool enough_pressure)
 {
@@ -133,8 +144,7 @@ void by_rcs(
     bool first_interaction,
     bool manual,
     bool power, 
-    bool test, 
-    bool apu_demand)
+    bool test)
 {
     // Первым сообщением или при аварийном отключении
     if (first_interaction || rsp->auto_shutdown)
@@ -147,30 +157,7 @@ void by_rcs(
     else
     {
         if (power)
-        {
             msg->apu_power = 1;
-            //// Если есть запрос и ВСУ выключена, включаем
-            //if (!manual && apu_demand && (state == STATE_OFF || state == STATE_IDLE))
-            //{
-            //    msg->test = 0;
-            //    msg->start_cmd = 1;
-            //    msg->stop_cmd = 0;
-            //}
-            //// Если есть запрос и ВСУ включена, выключаем
-            //else if (!manual && !apu_demand && state != STATE_OFF && state != STATE_IDLE)
-            //{
-            //    msg->test = 0;
-            //    msg->start_cmd = 0;
-            //    msg->stop_cmd = 1;
-            //}
-            //// Если есть запрос на тестирование
-            //else if (!manual && test)
-            //{
-            //    msg->test = 1;
-            //    msg->start_cmd = 0;
-            //    msg->stop_cmd = 0;
-            //}
-        }
         // Если питания нет/пропало
         else
         {

@@ -1,7 +1,29 @@
+/* @file   apu_sensors.c
+*  @brief  Ôóíêöèè âûïîëíåíèÿ äåéñòâèé ñ ñèñòåìîé
+*
+*  @detail Ôàéë ñîäåğæèò êîä ôóíêöèé âûïîëíåíèÿ ğó÷íûõ è àâòîìàòè÷ñåêèõ äåéñòâèé
+*
+*  @author Áóãàêîâà À.À.
+*/
+
+
 #include "apu_driver.h"
 #include "apu_diagnostic.h"
 
-void toggle_components(
+
+/* @brief Ôóíêöèÿ âêëş÷åíèÿ / âûêëş÷åíèÿ êîíòğîëëåğà è âñåõ àãğåãàòîâ
+* 
+*  @param ECU* c0 : óêàçàòåëü íà ïåğâûé êàíàë êîíòğîëëåğà
+*  @param ECU* c1 : óêàçàòåëü íà âòîğîé êàíàë êîíòğîëëåğà
+*  @param Gas_generator* ggen : óêàçàòåëü íà ãàçîãåíåğàòîğ
+*  @param Rotor* rotor : óêàçàòåëü íà ğîòîğ
+*  @param Compressor* comp : óêàçàòåëü íà êîìïğåññîğ
+*  @param Generator* gen : óêàçàòåëü íà ãåíåğàòîğ
+*  @param Fuel_pump* pump : óêàçàòåëü íà òîïëèâíûé íàñîñ
+*  @param Pneumatic_system* psys : óêàçàòåëü íà ïíåâìîñèñòåìó
+*  @param bool value : çíà÷åíèå âêë./âûêë.
+*/
+static void toggle_components(
     ECU* c0,
     ECU* c1,
     Gas_generator* ggen,
@@ -12,32 +34,32 @@ void toggle_components(
     Pneumatic_system* psys,
     bool value)
 {
-    c0->power = value;
-    c1->power = value;
-    ggen->flame_sensor.power = value;
-    rotor->N1_0.power = value;
-    rotor->N1_1.power = value;
-    rotor->EGT_A0.power = value;
-    rotor->EGT_A1.power = value;
-    rotor->EGT_B0.power = value;
-    rotor->EGT_B1.power = value;
-    comp->P3.power = value;
-    comp->T3.power = value;
-    gen->NGC.power = value;
-    pump->fuel_sov.power = value;
-    pump->fuel_sov.sensor.power = value;
-    psys->asv.power = value;
-    psys->asv.sensor.power = value;
-    psys->bsv.power = value;
-    psys->bsv.sensor.power = value;
-    psys->fcv.power = value;
-    psys->fcv.sensor.power = value;
-    psys->mpu_xbleed.power = value;
-    psys->mpu_xbleed.sensor.power = value;
-    psys->P2.power = value;
-    psys->T2.power = value;
-    psys->P_duct.power = value;
-    psys->T_duct.power = value;
+    c0->power                       = value;
+    c1->power                       = value;
+    ggen->flame_sensor.power        = value;
+    rotor->N1_0.power               = value;
+    rotor->N1_1.power               = value;
+    rotor->EGT_A0.power             = value;
+    rotor->EGT_A1.power             = value;
+    rotor->EGT_B0.power             = value;
+    rotor->EGT_B1.power             = value;
+    comp->P3.power                  = value;
+    comp->T3.power                  = value;
+    gen->NGC.power                  = value;
+    pump->fuel_sov.power            = value;
+    pump->fuel_sov.sensor.power     = value;
+    psys->asv.power                 = value;
+    psys->asv.sensor.power          = value;
+    psys->bsv.power                 = value;
+    psys->bsv.sensor.power          = value;
+    psys->fcv.power                 = value;
+    psys->fcv.sensor.power          = value;
+    psys->mpu_xbleed.power          = value;
+    psys->mpu_xbleed.sensor.power   = value;
+    psys->P2.power                  = value;
+    psys->T2.power                  = value;
+    psys->P_duct.power              = value;
+    psys->T_duct.power              = value;
 }
 
 void perform_manual_actions(
@@ -59,8 +81,8 @@ void perform_manual_actions(
     Pneumatic_system* psys)
 {
     msgs->rcs.apu_power = actm->power;
-    c0->power = actm->power;
-    c1->power = actm->power;
+    c0->power           = actm->power;
+    c1->power           = actm->power;
 
     msgs->rcs.test = actm->test;
     actm->test = 0;

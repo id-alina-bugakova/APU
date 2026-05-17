@@ -7,14 +7,16 @@
 *  @author Ѕугакова ј.ј.
 */
 
+
 #pragma once
 
-#include "apu_components.h"
-#include "apu_communication.h"
-#include "apu_interface.h"
-#include "apu_diagnostic.h"
 
-#include "stdbool.h"
+#include <stdbool.h>
+#include "apu_communication.h"
+#include "apu_components.h"
+#include "apu_diagnostic.h"
+#include "apu_interface.h"
+
 
 /* @brief —труктура канала контроллера
 * 
@@ -31,12 +33,19 @@ typedef struct {
     unsigned long long tolerance;       ///< ¬рем€, после которого контроллер считаетс€ "упавшим"
 } ECU;
 
+
+/* @brief —труктура признаков уведомлени€ об аварийных ситуаци€х
+*  
+*  —труткра хранит признаки того, что была произведена отправка уведомлений в свз€и с каждой
+*  аварийной ситуацией
+*/
 typedef struct {
-    bool fire;
-    bool ovtime;
-    bool ovspeed;
-    bool ovheat;
+    bool fire;                          ///< ѕожар
+    bool ovtime;                        ///< ѕревышение времени запуска
+    bool ovspeed;                       ///< –азнос ротора
+    bool ovheat;                        ///< ѕерегрев
 } Emergency_notifications;
+
 
 /* @brief ‘ункци€ инициализации контроллера
 * 
@@ -52,12 +61,13 @@ void init_controller(ECU* contr, int id, bool main_channel);
 */
 void init_emergency_notification(Emergency_notifications* enfs);
 
+
 /* @brief ‘ункци€ обновлени€ канала контроллера
 * 
 *  @param ECU* c1 : текущий канал контроллера
 *  @param ECU* c2 : другой канал контроллера
 *  @param uint32_t cur_time : текущее врем€ в тактах
-*  @param State state : текущее состо€ние
+*  @param State* state : указатель на текущее состо€ние
 *  @param Starter* start : указатель на электростартер
 *  @param Gas_generator* ggen : указатель на газогенератор
 *  @param Rotor* rotor : указатель на ротор
@@ -71,6 +81,10 @@ void init_emergency_notification(Emergency_notifications* enfs);
 *  @param Actions* acts : структра с действи€ми, которые производ€тс€ после обновлени€ контроллера
 *  @param Data* data : обща€ структура дл€ записи данных контроллерами
 *  @param Physical* phys : структура с физическими параметрами
+*  @param Problem_notifications* ntfs : структура признаков уведомлени€ об отказах
+*  @param Emergency_notifications* enfs : структура признаков уведомлени€ об аварийных ситуаци€х
+*  @param Message_buffer* mb : буфер сообщений дл€ вывода
+*  @param File_output* fout : файл логировани€ сообщений
 */
 void update_controller(
     ECU* c1,

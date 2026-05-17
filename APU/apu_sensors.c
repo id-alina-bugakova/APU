@@ -6,9 +6,11 @@
 *  @author Бугакова А.А.
 */
 
+
+#include "apu_sensors.h"
 #include "apu_defs.h"
 #include "apu_math.h"
-#include "apu_sensors.h"
+
 
 void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id)
 {
@@ -94,6 +96,7 @@ void init_discrete_sensor(Discrete_sensor* sensor, Sensor_type type, uint8_t id)
 	sensor->power = OFF;
 	sensor->value = 0;
 }
+
 
 void update_digital_sensor(Digital_sensor* sensor, double value)
 {

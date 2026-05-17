@@ -8,7 +8,9 @@
 *  @author Бугакова А.А.
 */
 
+
 #pragma once
+
 
 ///< Названия состояний
 #define APU_STATES                    \
@@ -69,6 +71,7 @@
         "EMERGENCY SHUTDOWN COMMAND", \
         "NONE"                        \
     }
+
 
 /* @brief  Состояния конечного автомата
 */

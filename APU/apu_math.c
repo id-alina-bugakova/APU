@@ -6,7 +6,9 @@
 *  @author Бугакова А.А.
 */
 
+
 #include "apu_math.h"
+
 
 double double_abs(double a)
 {

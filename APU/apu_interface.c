@@ -1,41 +1,51 @@
+/* @file   apu_sensors.c
+*  @brief  Код пользовательского интерфейса
+*
+*  @detail Файл содержит код функций, составляющих пользовательский интерфейс.
+*
+*  @author Бугакова А.А.
+*/
+
+
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <windows.h>
+
 #include <stdio.h>
 #include <string.h>
-
+#include <windows.h>
 #include "apu_interface.h"
-#include "apu_scenarios.h"
 #include "apu_math.h"
+#include "apu_scenarios.h"
+
 
 void init_file_output(File_output* fout)
 {
     fout->first_output = 1;
-    strcpy(fout->starter_M, "output/starter_M.data");
-    strcpy(fout->pid_fuel_feed, "output/pid_fuel_feed.data");
-    strcpy(fout->pid_p_component, "output/pid_p_component.data");
-    strcpy(fout->pid_i_component, "output/pid_i_component.data");
-    strcpy(fout->pid_d_component, "output/pid_d_component.data");
-    strcpy(fout->ggen_fuel_cmd, "output/ggen_fuel_cmd.data");
-    strcpy(fout->ggen_fuel, "output/ggen_fuel.data");
-    strcpy(fout->ggen_M, "output/ggen_M.data");
-    strcpy(fout->rotor_N, "output/rotor_N.data");
-    strcpy(fout->rotor_EGT, "output/rotor_EGT.data");
-    strcpy(fout->comp_M, "output/comp_M.data");
-    strcpy(fout->comp_P3, "output/comp_P3.data");
-    strcpy(fout->comp_T3, "output/comp_T3.data");
-    strcpy(fout->fan_M, "output/fan_M.data");
-    strcpy(fout->gen_M, "output/gen_M.data");
-    strcpy(fout->pump_M, "output/pump_M.data");
-    strcpy(fout->psys_P2, "output/psys_P2.data");
-    strcpy(fout->psys_T2, "output/psys_T2.data");
-    strcpy(fout->psys_P_duct, "output/psys_P_duct.data");
-    strcpy(fout->psys_T_duct, "output/psys_T_duct.data");
+    strcpy(fout->starter_M,         "output/starter_M.data");
+    strcpy(fout->pid_fuel_feed,     "output/pid_fuel_feed.data");
+    strcpy(fout->pid_p_component,   "output/pid_p_component.data");
+    strcpy(fout->pid_i_component,   "output/pid_i_component.data");
+    strcpy(fout->pid_d_component,   "output/pid_d_component.data");
+    strcpy(fout->ggen_fuel_cmd,     "output/ggen_fuel_cmd.data");
+    strcpy(fout->ggen_fuel,         "output/ggen_fuel.data");
+    strcpy(fout->ggen_M,            "output/ggen_M.data");
+    strcpy(fout->rotor_N,           "output/rotor_N.data");
+    strcpy(fout->rotor_EGT,         "output/rotor_EGT.data");
+    strcpy(fout->comp_M,            "output/comp_M.data");
+    strcpy(fout->comp_P3,           "output/comp_P3.data");
+    strcpy(fout->comp_T3,           "output/comp_T3.data");
+    strcpy(fout->fan_M,             "output/fan_M.data");
+    strcpy(fout->gen_M,             "output/gen_M.data");
+    strcpy(fout->pump_M,            "output/pump_M.data");
+    strcpy(fout->psys_P2,           "output/psys_P2.data");
+    strcpy(fout->psys_T2,           "output/psys_T2.data");
+    strcpy(fout->psys_P_duct,       "output/psys_P_duct.data");
+    strcpy(fout->psys_T_duct,       "output/psys_T_duct.data");
 
-    strcpy(fout->temp, "output/temp.data");
+    strcpy(fout->temp,              "output/temp.data");
 
     fout->first_log = 1;
-    strcpy(fout->log, "output/_ECU.log");
+    strcpy(fout->log,               "output/_ECU.log");
 }
 
 void write_files(File_output* fout, APU* apu)
@@ -148,34 +158,35 @@ void write_files(File_output* fout, APU* apu)
     fout->first_output = 0;
 }
 
+
 void init_output(Output* out)
 {
-    out->setup_done = 0;
-    out->detailed_output = OFF;
-    out->normal_height = 36;
-    out->normal_width = 100;
-    out->detailed_height = 60;
-    out->detailed_width = 140;
-    out->normal_message_begin = out->normal_height - N_MESSAGES;
+    out->setup_done             = 0;
+    out->detailed_output        = OFF;
+    out->normal_height          = 36;
+    out->normal_width           = 100;
+    out->detailed_height        = 60;
+    out->detailed_width         = 140;
+    out->normal_message_begin   = out->normal_height   - N_MESSAGES;
     out->detailed_message_begin = out->detailed_height - N_MESSAGES;
 }
+
 
 void init_buffer(Message_buffer* mb)
 {
     for (int i = 0; i < N_MESSAGES; i++)
         *mb->buffer[i] = "\0";
-    mb->filled = 0;
-    mb->cur_begin = 0;
-    mb->updated = 0;
+    mb->filled      = 0;
+    mb->cur_begin   = 0;
+    mb->updated     = 0;
 }
-
 
 void print_to_buffer(Message_buffer* mb, char* str[STRING_LEN], File_output* fout)
 {
     strcpy(mb->buffer[(mb->cur_begin + mb->filled) % N_MESSAGES], str);
     if (mb->filled == 10)
         mb->cur_begin = (mb->cur_begin + 1) % N_MESSAGES;
-    mb->filled = MIN(mb->filled + 1, 10);
+    mb->filled  = MIN(mb->filled + 1, 10);
     mb->updated = 1;
 
     FILE* log = fopen(fout->log, (fout->first_log ? "w" : "a"));
@@ -183,6 +194,7 @@ void print_to_buffer(Message_buffer* mb, char* str[STRING_LEN], File_output* fou
     fclose(log);
     fout->first_log = 0;
 }
+
 
 void move_to(int x, int y)
 {
@@ -971,17 +983,19 @@ void printer(
 
     out->setup_done = 1;
 
-    *prev_state = state;
-    *prev_height = height;
-    *ECU0_fault_prev = ECU0_fault;
-    *ECU1_fault_prev = ECU1_fault;
+    *prev_state         = state;
+    *prev_height        = height;
+    *ECU0_fault_prev    = ECU0_fault;
+    *ECU1_fault_prev    = ECU1_fault;
     copy_responses(rsps, prev_rsps);
     copy_APU(apu, prev_apu);
 
 }
 
 
-void scenario_menu()
+/* @brief Функция вывода меню выбора сценариев
+*/
+static void scenario_menu()
 {
     printf("  Select scenario:\n");
     printf("  - Press D - data translation demo (ARINC/analog signals)\n");
@@ -1029,8 +1043,13 @@ int get_scenario()
     }
 }
 
-
-void phys_params_menu(Physical* phys, bool c0_fault, bool c1_fault)
+/* @brief Функция вывода меню изменения физических параметров
+* 
+*  @param Physical* phys : структура физических событий
+*  @param bool c0_fault : признак неисправности первого канала контроллера
+*  @param bool c1_fault : признак неисправности второго канала контроллера
+*/
+static void phys_params_menu(Physical* phys, bool c0_fault, bool c1_fault)
 {
     printf("============================================================\n");
     printf("  You are changing physical parameters; simulation is paused\n");
@@ -1054,7 +1073,11 @@ void phys_params_menu(Physical* phys, bool c0_fault, bool c1_fault)
     printf("============================================================\n");
 }
 
-void toggle_fault_menu(APU* apu)
+/* @brief Функция вывода меню назначения неисправностей
+* 
+*  @param APU* apu : структура агрегатов ВСУ
+*/
+static void toggle_fault_menu(APU* apu)
 {
     printf("============================================================\n");
     printf("  You are toggling fault parameters; simulation is paused\n");
@@ -1196,7 +1219,7 @@ char handle_key_press(
                     *c0_fault = !(*c0_fault);
                 else if (key2 == 'e')
                     *c1_fault = !(*c1_fault);
-                else if(key2 == 'c')
+                else if (key2 == 'c')
                 {
                     system("cls");
                     toggle_fault_menu(apu);

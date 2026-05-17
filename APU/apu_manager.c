@@ -1,28 +1,26 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#define T_MODELING 310
-#define N_STEPS (1/H * T_MODELING)
-#define SLEEP_TIME 1  //2 
+#define SLEEP_TIME 1  // ¬рем€ засыпани€ между выводами панели состо€ни€
 
-#include <windows.h>
 #include <conio.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "apu_defs.h"
-#include "apu_diagnostic.h"
-#include "apu_math.h"
+#include <windows.h>
 #include "apu_components.h"
 #include "apu_controller.h"
-#include "apu_outer.h"
+#include "apu_defs.h"
+#include "apu_diagnostic.h"
 #include "apu_driver.h"
 #include "apu_interface.h"
-#include "apu_watchdog.h"
+#include "apu_math.h"
+#include "apu_outer.h"
 #include "apu_scenarios.h"
+#include "apu_watchdog.h"
 
 
 void manager_cyclic()
 {
+    // —оздаем и инициализируем структуры
     APU apu;
     init_APU(&apu);
 
@@ -110,7 +108,7 @@ void manager_cyclic()
         fflush(stdout);
 
         if (!manual_mode)
-            start_scenario(&fis, &apu, &actm, &phys, &c0, &c1);
+            run_scenario(&fis, &apu, &actm, &phys, &c0, &c1);
 
         printer(
             manual_mode, &out, &mb, &rsps, &prev_rsps, 
@@ -137,7 +135,7 @@ void manager_cyclic()
         by_air_cs(&(msgs.air_cs), &(rsps.air_cs), (i == 1), actm.bleed, 0);
         by_mpu(&(msgs.mpu), &(rsps.mpu), (i == 1), actm.mpu_start, 0);
         by_fps(&(msgs.fps), phys.fire);
-        by_rcs(&(msgs.rcs), &(rsps.rcs), state, (i == 1), manual_mode, actm.power, actm.test, 1);
+        by_rcs(&(msgs.rcs), &(rsps.rcs), state, (i == 1), manual_mode, actm.power, actm.test);
         by_auto_cs(&(msgs.auto_cs), phys.auto_start);
 
         // ¬ыполн€ем действи€ вручную

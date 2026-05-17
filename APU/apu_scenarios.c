@@ -1,9 +1,20 @@
+/* @file   apu_scenarios.c
+*  @brief  Функции работы со сценариями
+*
+*  @detail Файл содержит код функций, позволяющих записывать и считывать сценарии.
+*
+*  @author Бугакова А.А.
+*/
+
+
 #define _CRT_SECURE_NO_WARNINGS
 
+
+#include <stdio.h>
+#include <string.h>
 #include "apu_scenarios.h"
 #include "apu_interface.h"
-#include <string.h>
-#include <stdio.h>
+
 
 void init_fin_scenario(Fin_scenario* fis)
 {
@@ -17,6 +28,7 @@ void init_fout_scenario(Fout_scenario* fos)
     fos->first_record = 1;
     strcpy(fos->path, "output/_scenario.sc");
 }
+
 
 void write_scenario(
     Fout_scenario* fos, 
@@ -50,7 +62,7 @@ void write_scenario(
     fos->first_record = 0;
 }
 
-void start_scenario(
+void run_scenario(
     Fin_scenario* scns,
     APU* apu, 
     Actions_manual* actm, 
@@ -111,20 +123,20 @@ void start_scenario(
             return;
 
         // Записываем считанные данные в bool
-        phys->fire = fire;
-        phys->height = height;
-        phys->auto_start = auto_start;
-        phys->ignited = ignited;
-        phys->enough_pressure = enough_pressure;
-        actm->power = power;
-        actm->test = test;
-        actm->reset = reset;
-        actm->start = start;
-        actm->bleed = bleed;
-        actm->gen = gen;
-        actm->mpu_start = mpu_start;
-        c0->fault = c0_fault;
-        c1->fault = c1_fault;
+        phys->fire              = fire;
+        phys->height            = height;
+        phys->auto_start        = auto_start;
+        phys->ignited           = ignited;
+        phys->enough_pressure   = enough_pressure;
+        actm->power             = power;
+        actm->test              = test;
+        actm->reset             = reset;
+        actm->start             = start;
+        actm->bleed             = bleed;
+        actm->gen               = gen;
+        actm->mpu_start         = mpu_start;
+        c0->fault               = c0_fault;
+        c1->fault               = c1_fault;
 
         if (faults == 'a')
             apu->ggen.flame_sensor.fault = !apu->ggen.flame_sensor.fault;
@@ -180,4 +192,3 @@ void start_scenario(
             apu->psys.T_duct.fault = !apu->psys.T_duct.fault;
     }
 }
-

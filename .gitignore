@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /APU/output/.idea/inspectionProfiles
 /APU/output/.idea
 *.data
+/APU/output/_scenario.sc

@@ -7,23 +7,29 @@
 *  @author Бугакова А.А.
 */
 
+
 #pragma once
+
 
 #define SENSOR_BUFFER_SIZE 2
 
-#include <stdint.h>
+
 #include <stdbool.h>
+#include <stdint.h>
+
 
 /* @brief  Единицы измерения
 */
 typedef enum 
 {
-    UNIT_PSI,
-    UNIT_DEG_C,
+    UNIT_PSI, 
+    UNIT_DEG_C,     
     UNIT_RPM
 } Unit;
 
 /* @brief  Типы датчиков
+* 
+*  В зависимости от типа датчика инициализируются его параметры
 */
 typedef enum
 {
@@ -124,6 +130,7 @@ typedef enum
     SENSOR_TYPE_FLAME
 } Sensor_type;
 
+
 /* @brief  Конфигурация цифрового датчика
 * 
 *  Хранит предельные значения и временные параметры одного цифрового датчика
@@ -163,6 +170,7 @@ typedef struct
 *  @param uint8_t id : идентификатор датчика в резерве (0 для датчиков без резервирования)
 */
 void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id);
+
 /* @brief Функция инициализации дискретных датчиков
 *
 *  @param Discrete_sensor* sensor : экземпляр сенсора, который будет инициализирован
@@ -171,18 +179,21 @@ void init_digital_sensor(Digital_sensor* sensor, Sensor_type type, uint8_t id);
 */
 void init_discrete_sensor(Discrete_sensor* sensor, Sensor_type type, uint8_t id);
 
+
 /* @brief Функция обновления цифрового датчика
 * 
 *  @param Digital_sensor* sensor : экземпляр сенсора, показания которого перезаписываем
 *  @param double value : новое показание датчика (отправляется в буфер)
 */
 void update_digital_sensor(Digital_sensor* sensor, double value);
+
 /* @brief Функция обновления датчика температуры за бортом
 *
 *  @param Digital_sensor* T2 : экземпляр сенсора, показания которого перезаписываем
 *  @param int height : высота в метрах
 */
 void update_T2(Digital_sensor* T2, int height);
+
 /* @brief Функция обновления датчка давления за бортом
 *
 *  @param Digital_sensor* P2 : экземпляр сенсора, показания которого перезаписываем

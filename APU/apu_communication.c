@@ -1,5 +1,16 @@
+/* @file   apu_communication.c
+*  @brief  Инициализация и изменение структур передачи данных
+*
+*  @detail Файл содержит код функций, задающих начальные параметры структур и позволяющих изменять
+*  некоторые структуры.
+*
+*  @author Бугакова А.А.
+*/
+
+
 #include "apu_communication.h"
 #include "apu_defs.h"
+
 
 void init_messages(Messages* msgs)
 {
@@ -72,13 +83,13 @@ void init_actions(Actions* acts)
 
 void init_actions_manual(Actions_manual* actm)
 {
-    actm->power             = 0;
-    actm->test              = 0;
-    actm->reset             = 0;
-    actm->start             = 0;
-    actm->bleed             = 0;
-    actm->gen               = 0;
-    actm->mpu_start         = 0;
+    actm->power                     = 0;
+    actm->test                      = 0;
+    actm->reset                     = 0;
+    actm->start                     = 0;
+    actm->bleed                     = 0;
+    actm->gen                       = 0;
+    actm->mpu_start                 = 0;
 }
 
 void init_data(Data* data)
@@ -118,6 +129,7 @@ void init_physical(Physical* phys)
     phys->enough_pressure = 1;
 }
 
+
 void reset_messages(Messages* msgs)
 {
     msgs->eps.ext_power_avail       = 0;
@@ -138,23 +150,24 @@ void reset_messages(Messages* msgs)
     msgs->auto_cs.auto_start        = 0;
 }
 
+
 void copy_responses(Responses* original, Responses* copy)
 {
-    copy->eps.power_avail = original->eps.power_avail;
-    copy->fs.fuel_demand = original->fs.fuel_demand;
-    copy->air_cs.apu_bleed_avail = original->air_cs.apu_bleed_avail;
-    copy->mpu.apu_bleed_avail = original->mpu.apu_bleed_avail;
-    copy->mpu.apu_bleed_valve_stat = original->mpu.apu_bleed_valve_stat;
+    copy->eps.power_avail           = original->eps.power_avail;
+    copy->fs.fuel_demand            = original->fs.fuel_demand;
+    copy->air_cs.apu_bleed_avail    = original->air_cs.apu_bleed_avail;
+    copy->mpu.apu_bleed_avail       = original->mpu.apu_bleed_avail;
+    copy->mpu.apu_bleed_valve_stat  = original->mpu.apu_bleed_valve_stat;
     copy->mpu.crossbleed_valve_stat = original->mpu.crossbleed_valve_stat;
-    copy->mpu.eng_bleed_valve_stat = original->mpu.eng_bleed_valve_stat;
-    copy->mpu.apu_bleed_pres = original->mpu.apu_bleed_pres;
-    copy->rcs.power_on = original->rcs.power_on;
-    copy->rcs.apu_fault = original->rcs.apu_fault;
-    copy->rcs.critical_fault = original->rcs.critical_fault;
-    copy->rcs.start = original->rcs.start;
-    copy->rcs.stop = original->rcs.stop;
-    copy->rcs.avail = original->rcs.avail;
-    copy->rcs.auto_shutdown = original->rcs.auto_shutdown;
-    copy->rcs.N1 = original->rcs.N1;
-    copy->rcs.EGT = original->rcs.EGT;
+    copy->mpu.eng_bleed_valve_stat  = original->mpu.eng_bleed_valve_stat;
+    copy->mpu.apu_bleed_pres        = original->mpu.apu_bleed_pres;
+    copy->rcs.power_on              = original->rcs.power_on;
+    copy->rcs.apu_fault             = original->rcs.apu_fault;
+    copy->rcs.critical_fault        = original->rcs.critical_fault;
+    copy->rcs.start                 = original->rcs.start;
+    copy->rcs.stop                  = original->rcs.stop;
+    copy->rcs.avail                 = original->rcs.avail;
+    copy->rcs.auto_shutdown         = original->rcs.auto_shutdown;
+    copy->rcs.N1                    = original->rcs.N1;
+    copy->rcs.EGT                   = original->rcs.EGT;
 }

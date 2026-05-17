@@ -1,5 +1,17 @@
+/* @file   apu_interface.h
+*  @brief  Функции и структуры пользовательского интерфейса
+*
+*  @detail Файл содержит разметки меню, функции их вывода, обработчик нажатия клавиш и структуры
+*  для вывода в файл.
+*
+*  @author Бугакова А.А.
+*/
+
+
 #pragma once
 
+
+///< Разметка панели состояния нормального режиме
 #define NORMAL_LAYOUT                                                        \
     {                                                                        \
         "============================================================\n",    \
@@ -16,8 +28,9 @@
         "        EGT                                                 \n",    \
         "============================================================\n",    \
     }
-#define N_NORMAL_LAYOUT 13
+#define N_NORMAL_LAYOUT 13      ///< Число строк в панели состояния нормального режима
 
+///< Разметка панели состояния детального режима
 #define DETAILED_LAYOUT                                                                                                                                      \
     {                                                                                                                                                        \
         "============================================================================================================================================\n",    \
@@ -40,11 +53,11 @@
         "      FUEL FEED             N1 0:         [ ]      T3                 FAULT           [ ]      CLOSE CMD    [ ]      CLOSE CMD       [ ]    \n",    \
         "      P COMP                  FAULT       [ ]    P3:        [ ]       VALUE                    OPEN         [ ]      OPEN            [ ]    \n",    \
         "      I COMP                  VALUE                FAULT    [ ]                              ASV SENSOR:    [ ]    FCV SENSOR:       [ ]    \n",    \
-        "      D COMP               N1 1:         [ ]      VALUE            FUEL PUMP:        [ ]       FAULT        [ ]      FAULT           [ ]    \n",    \
+        "      D COMP                N1 1:         [ ]      VALUE            FUEL PUMP:        [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
         "                              FAULT       [ ]    T3:        [ ]       TURN ON CMD     [ ]      VALUE        [ ]      VALUE           [ ]    \n",    \
         "    GAS GENERATOR:            VALUE                FAULT    [ ]       TURN OFF CMD    [ ]    BSV:           [ ]    XBLEED:           [ ]    \n",    \
         "      IGNITED        [ ]    EGT A0:       [ ]      VALUE              ON              [ ]      FAULT        [ ]      FAULT           [ ]    \n",    \
-        "      FUEL CMD              FAULT       [ ]                         M                          OPEN CMD     [ ]      OPEN CMD        [ ]    \n",    \
+        "      FUEL CMD                FAULT       [ ]                         M                        OPEN CMD     [ ]      OPEN CMD        [ ]    \n",    \
         "      FUEL                    VALUE              COOLING FAN:       FUEL SOV:         [ ]      CLOSE CMD    [ ]      CLOSE CMD       [ ]    \n",    \
         "      M                     EGT A1:       [ ]      FAULT    [ ]       FAULT           [ ]      OPEN         [ ]      OPEN            [ ]    \n",    \
         "    FLAME SENSOR:    [ ]      FAULT       [ ]      N                  OPEN CMD        [ ]    BSV SENSOR:    [ ]    XBLEED SENSOR:    [ ]    \n",    \
@@ -58,22 +71,22 @@
         "      FAILURE        [ ]                                                                       VALUE                 VALUE                  \n",    \
         "============================================================================================================================================\n"     \
     }
-#define N_DETAILED_LAYOUT 37
+#define N_DETAILED_LAYOUT 37    ///< Число строк в панели состояния детального режима
 
 // Общие символы и форматные строки
-#define SMB_1 'X'                                           // Символ, которым отмечаются истинные поля
-#define SMB_0 ' '                                           // Символ, которым отмечаются ложные поля
-#define BRACKET_FORMAT "  [%c] "                            // Форматная строка для вывода скобки
-#define BRACKET_SMB(condition) (condition? SMB_1 : SMB_0)   // Условие выбора символа в скобке
-#define EXP_FORMAT "%8.1e "                                  // Экспоненциальный формат для коэффициентов ПИД
-#define N_FORMAT "%5.0f "                                   // Форматная строка для оборотов
-#define M_FORMAT "%5.1f "                                   // Форматная строка для момента
-#define P_FORMAT "%5.1f "                                   // Форматная строка для давления
-#define T_FORMAT "%5.1f "                                   // Форматная строка для температуры
-#define FUEL_FEED_FORMAT "%5.3f "                           // Форматная строка для подачи топлива (0..1)
-#define FUEL_FORMAT "%5.2f "                                // Форматная строка для топлива (0..12)
-#define HEIGHT_FORMAT "%d        "                          // Форматная строка высоты
-#define TIME_FORMAT "%.2f s (%d tacts)        "             // Форматная строка для времени
+#define SMB_1 'X'                                           ///< Символ, которым отмечаются истинные поля
+#define SMB_0 ' '                                           ///< Символ, которым отмечаются ложные поля
+#define BRACKET_FORMAT "  [%c] "                            ///< Форматная строка для вывода скобки
+#define BRACKET_SMB(condition) (condition? SMB_1 : SMB_0)   ///< Условие выбора символа в скобке
+#define EXP_FORMAT "%8.1e "                                 ///< Экспоненциальный формат для коэффициентов ПИД
+#define N_FORMAT "%5.0f "                                   ///< Форматная строка для оборотов
+#define M_FORMAT "%5.1f "                                   ///< Форматная строка для момента
+#define P_FORMAT "%5.1f "                                   ///< Форматная строка для давления
+#define T_FORMAT "%5.1f "                                   ///< Форматная строка для температуры
+#define FUEL_FEED_FORMAT "%5.3f "                           ///< Форматная строка для подачи топлива (0..1)
+#define FUEL_FORMAT "%5.2f "                                ///< Форматная строка для топлива (0..12)
+#define HEIGHT_FORMAT "%d        "                          ///< Форматная строка высоты
+#define TIME_FORMAT "%.2f s (%d tacts)        "             ///< Форматная строка для времени
 
 // Положения отдельных элементов (начиная с 0, X - колонка, Y - строка)
 #define SCENARIO_MODE_SHORTER 8
@@ -122,7 +135,7 @@
 #define POS_Y_GGEN_FLAME_POWER (POS_Y_START_M + 13)
 #define POS_Y_GGEN_FLAME_FAULT (POS_Y_START_M + 14)
 #define POS_Y_GGEN_FLAME_VALUE (POS_Y_START_M + 15)
-// Также канала ECU
+// Также каналы ECU
 #define POS_Y_ECU0 (POS_Y_GGEN_FLAME_VALUE + 4)
 #define POS_Y_ECU1 (POS_Y_ECU0 + 2)
 
@@ -232,17 +245,20 @@
 #define POS_Y_PSYS_TDUCT_FAULT         (POS_Y_PSYS_FCV_POWER + 20)
 #define POS_Y_PSYS_TDUCT_VALUE         (POS_Y_PSYS_FCV_POWER + 21)
 
-// Размер кольцевого буфера = число последних сообщений на экране
+///< Размер кольцевого буфера = число последних сообщений на экране
 #define N_MESSAGES 10
 
-#include "apu_defs.h"
-#include "apu_components.h"
+
 #include "apu_communication.h"
+#include "apu_components.h"
+#include "apu_defs.h"
 #include "apu_state_machine.h"
 
+
+///< Структура с информацией о выводе
 typedef struct {
     bool detailed_output;       ///< Признак режима детального вывода
-    bool setup_done;            ///< Признак вывода фона страницы
+    bool setup_done;            ///< Признак готовности фона страницы
     int normal_height;          ///< Высота консоли в нормальном режиме
     int normal_width;           ///< Ширина консоли в нормальном режиме
     int detailed_height;        ///< Высота консоли в режиме детального вывода
@@ -251,39 +267,64 @@ typedef struct {
     int detailed_message_begin; ///< Индекс строки, начиная с которой выводятся сообщения в детал.
 } Output;
 
+/* @brief Функция инициализации структуры с информацией о выводе
+* 
+*  @param Output* out : инициализируемая структура
+*/
 void init_output(Output* out);
 
+
+/* @brief Структура файлового вывода
+* 
+*  Содержит относительные пути к файлам данных для графиков и лога сообщений, а также признаки
+*  первого вывода в эти файлы
+*/
 typedef struct
 {
-    bool first_output;                  ///<
-    char starter_M[STRING_LEN];         ///< Относительные пути к файлам
-    char pid_fuel_feed[STRING_LEN];
-    char pid_p_component[STRING_LEN];
-    char pid_i_component[STRING_LEN];
-    char pid_d_component[STRING_LEN];
-    char ggen_fuel_cmd[STRING_LEN];
-    char ggen_fuel[STRING_LEN];
-    char ggen_M[STRING_LEN];
-    char rotor_N[STRING_LEN];
-    char rotor_EGT[STRING_LEN];
-    char comp_M[STRING_LEN];
-    char comp_P3[STRING_LEN];
-    char comp_T3[STRING_LEN];
-    char fan_M[STRING_LEN];
-    char gen_M[STRING_LEN];
-    char pump_M[STRING_LEN];
-    char psys_P2[STRING_LEN];
-    char psys_T2[STRING_LEN];
-    char psys_P_duct[STRING_LEN];
-    char psys_T_duct[STRING_LEN];
-    char temp[STRING_LEN];        
-    bool first_log;            
-    char log[STRING_LEN];
+    bool first_output;                  ///< Признак того, что в файлы данных еще не было вывода
+    char starter_M[STRING_LEN];         ///< Относительный путь к файлу данных: момент стартера
+    char pid_fuel_feed[STRING_LEN];     ///< Относительный путь к файлу данных: подача топлива ПИД
+    char pid_p_component[STRING_LEN];   ///< Относительный путь к файлу данных: п-компонента ПИД
+    char pid_i_component[STRING_LEN];   ///< Относительный путь к файлу данных: и-компонента ПИД
+    char pid_d_component[STRING_LEN];   ///< Относительный путь к файлу данных: д-компонента ПИД
+    char ggen_fuel_cmd[STRING_LEN];     ///< Относительный путь к файлу данных: команда подачи толива
+    char ggen_fuel[STRING_LEN];         ///< Относительный путь к файлу данных: фактическая подача топлива
+    char ggen_M[STRING_LEN];            ///< Относительный путь к файлу данных: момент газогенератора
+    char rotor_N[STRING_LEN];           ///< Относительный путь к файлу данных: обороты ротора
+    char rotor_EGT[STRING_LEN];         ///< Относительный путь к файлу данных: температура выхлопа
+    char comp_M[STRING_LEN];            ///< Относительный путь к файлу данных: момент компрессора
+    char comp_P3[STRING_LEN];           ///< Относительный путь к файлу данных: давление за компрессором
+    char comp_T3[STRING_LEN];           ///< Относительный путь к файлу данных: температура за компрессором
+    char fan_M[STRING_LEN];             ///< Относительный путь к файлу данных: момент вентилятора
+    char gen_M[STRING_LEN];             ///< Относительный путь к файлу данных: момент генератора
+    char pump_M[STRING_LEN];            ///< Относительный путь к файлу данных: момент насоса
+    char psys_P2[STRING_LEN];           ///< Относительный путь к файлу данных: давление за бортом
+    char psys_T2[STRING_LEN];           ///< Относительный путь к файлу данных: температура за бортом
+    char psys_P_duct[STRING_LEN];       ///< Относительный путь к файлу данных: давление в пневмосети
+    char psys_T_duct[STRING_LEN];       ///< Относительный путь к файлу данных: температура в пневмосети
+    char temp[STRING_LEN];              ///< Относительный путь к отладочному файлу данных
+    bool first_log;                     ///< Признак того, что в файл лога еще не было вывода
+    char log[STRING_LEN];               ///< Относительный путь к файлу лога сообщений 
 } File_output;
 
+/* @brief Функция инициализации структуры файлового вывода
+* 
+*  @param File_output* fout : инициализируемая структура
+*/
 void init_file_output(File_output* fout);
+
+/* @brief Функция записи файлов данных и лога
+*
+*  @param File_output* fout : структура файлового вывода
+*  @param APU* apu : структура агрегатов ВСУ
+*/
 void write_files(File_output* fout, APU* apu);
 
+
+/* @brief Структура буфера вывода сообщений
+* 
+*  Кольцевой буфер сохраняет последние 10 сообщений от контроллера и сторожевого таймера
+*/
 typedef struct {
     char buffer[N_MESSAGES][STRING_LEN];    ///< Кольцевой буфер строк
     int filled;                             ///< Число записей в буфере (от 0 до N_MESSAGES)
@@ -291,13 +332,48 @@ typedef struct {
     bool updated;                           ///< Добавлена новая запись
 } Message_buffer;
 
+/* @brief Функция инициализации структуры буфера вывода сообщений
+*
+*  @param Message_buffer* mb : инициализируемая структура
+*/
 void init_buffer(Message_buffer* mb);
-// Запись в буфер
+
+/* @brief Функция записи сообщения в кольцевой буфер
+* 
+*  @param Message_buffer* mb : 
+*  @param char* str[STRING_LEN] :  
+*  @param File_output* fout : 
+*/
 void print_to_buffer(Message_buffer* mb, char* str[STRING_LEN], File_output* fout);
 
+
+/* @brief Функция перемещения курсора консоли
+*  
+*  @param int x : колонка, куда будет перемещен курсор (начиная с 0)
+*  @param int y : строка, куда будет перемещен курсор (начиная с 0)
+*/
 void move_to(int x, int y);
 
-// Основная функция вывода
+
+/* @brief Основная функция вывода (панели состояния)
+* 
+*  @param bool manual_mode : признак ручного режима управления (без сценария)
+*  @param Output* out : структура параметров вывода
+*  @param Message_buffer* mb : буфер вывода сообщений
+*  @param Responses* rsps : ответы внешним системам на текущем шаге
+*  @param Responses* prev_rsps : ответы внешним системам на прошлом шаге (обновляется внутри)
+*  @param uint32_t cur_time : текущее время
+*  @param int height : высота полета на текущем шаге
+*  @param int* prev_height : высота полета на прошлом шаге (обновляется внутри)
+*  @param State state : текущее состояние
+*  @param State* prev_state : состояние на прошлом шаге (обновляется внутри)
+*  @param bool ECU0_fault : неисправность первого канала контроллера на текущем шаге
+*  @param bool* ECU0_fault_prev : неисправность первого канала контроллера на прошлом шаге (обновляется внутри)
+*  @param bool ECU1_fault : неисправность второго канала контроллера на текущем шаге
+*  @param bool* ECU1_fault_prev : неисправность второго канала контроллера на прошлом шаге (обновляется внутри)
+*  @param APU* apu : структура агрегатов ВСУ
+*  @param APU* prev_apu : структура агрегатов ВСУ на прошлом шаге (обновляется внутри)
+*/
 void printer(
     bool manual_mode,
     Output* out,
@@ -316,9 +392,28 @@ void printer(
     APU* apu,
     APU* prev_apu);
 
+/* @brief  Функция меню получения сценария с клавиатуры
+* 
+*  @return Номер выбранного сценария
+*/
 int get_scenario();
 
-// Обработка ввода
+/* @brief  Функция-обработчик нажатия на клавишу
+* 
+*  @param  char key : нажатая клавиша
+*  @param  bool manual_mode : признак ручного управления 
+*  @param  Output* out : структура параметров вывода
+*  @param  File_output* fout : структура файлового вывода
+*  @param  Message_buffer* mb : буфер вывода сообщений
+*  @param  State state : текущее состояние 
+*  @param  bool power : признак питания установки
+*  @param  bool* c0_fault : признак неисправности первого контроллера канала
+*  @param  bool* c1_fault : признак неисправности второго контроллера канала
+*  @param  APU* apu : структура агрегатов ВСУ
+*  @param  Physical* phys : структура физических событий
+*  @param  Actions_manual* actm : структура ручных дейсвтий
+*  @return Буквенный код внесенной неисправности агрегатов, либо '0', если не было
+*/
 char handle_key_press(
     char key,
     bool manual_mode,

@@ -7,9 +7,11 @@
 *  @author Ѕугакова ј.ј.
 */
 
+
 #include "apu_controller.h"
 #include "apu_defs.h"
 #include "apu_state_machine.h"
+
 
 void init_controller(ECU* contr, int id, bool main_channel)
 {
@@ -23,17 +25,18 @@ void init_controller(ECU* contr, int id, bool main_channel)
 
 void init_emergency_notification(Emergency_notifications* enfs)
 {
-    enfs->fire      = 0;
-    enfs->ovtime    = 0;
-    enfs->ovheat    = 0;
-    enfs->ovspeed   = 0;
+    enfs->fire             = 0;
+    enfs->ovtime           = 0;
+    enfs->ovheat           = 0;
+    enfs->ovspeed          = 0;
 }
+
 
 /* @brief ¬ычисление EGT на основе данных со всех датчиков EGT
 *
 *  @param Rotor* rotor : ротор, с датчиков которого снимаем показани€
 */
-double calculate_EGT(Rotor* rotor)
+static double calculate_EGT(Rotor* rotor)
 {
     /* ¬ычисл€ем EGT : если один датчик в канале сломан, то беретс€ значение другого,
     *  иначе среднее арифметическое. ≈сли один канал неактивен, то берем показани€
@@ -70,7 +73,7 @@ double calculate_EGT(Rotor* rotor)
 *
 *  @param Rotor* rotor : ротор, с датчиков которого снимаем показани€
 */
-double calculate_N(Rotor* rotor)
+static double calculate_N(Rotor* rotor)
 {
     if (!rotor->N1_0.fault && !rotor->N1_1.fault)
         return (rotor->N1_0.value + rotor->N1_1.value) / 2;
@@ -89,7 +92,7 @@ double calculate_N(Rotor* rotor)
 *  @param Responses* rsps : структура ответа, в которую записываем показатели ротора
 *  @param Data* data : структура, в которую сохран€ем данные о состо€нии ротора
 */
-void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
+static void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
 {
     // ¬ычисл€ем показатели ротора
     data->EGT_cur = calculate_EGT(rotor);
@@ -118,6 +121,7 @@ void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
         data->ovspeed = 0;
 }
 
+
 /* @brief ѕроверка наличи€ аварийных состо€ний (нормальный запуск)
 *
 *  @param ECU* c1 : указатель на провер€ющий канал контроллера
@@ -128,7 +132,7 @@ void check_N_EGT(uint32_t cur_time, Rotor* rotor, Responses* rsps, Data* data)
 *  @param Responses* rsps : структура ответа (дл€ отсечки топлива)
 *  @param Data* data : структура, в которую сохран€ем данные о состо€нии
 */
-void check_for_emergencies(
+static void check_for_emergencies(
     ECU* c1,
     uint32_t cur_time,
     Event* last_event,
@@ -192,8 +196,11 @@ void check_for_emergencies(
 *  @param Gas_generator* ggen : указатель на газогенератор
 *  @param Responses* rsps : структура ответа (дл€ отсечки топлива)
 *  @param Data* data : структура, в которую сохран€ем данные о состо€нии
+*  @param Emergency_notifications *enfs : структура признаков уведомлени€ об аварийных ситуаци€х
+*  @param Message_buffer* mb : буфер вывода сообщений
+*  @param File_output* fout : файл логировани€ сообщений
 */
-void check_for_emergencies_emergent(
+static void check_for_emergencies_emergent(
     ECU* c1,
     uint32_t cur_time,
     Event* last_event,
@@ -253,6 +260,7 @@ void check_for_emergencies_emergent(
         enfs->ovspeed = 0;
 }
 
+
 void update_controller(
     ECU* c1,
     ECU* c2,
@@ -276,7 +284,6 @@ void update_controller(
     Message_buffer* mb,
     File_output* fout)
 {
-
     char temp_str[STRING_LEN];
     // ≈сли контроллер работает на втором канале
     if (c1->power && !c1->fault && !c1->main_channel)

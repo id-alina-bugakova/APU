@@ -1,10 +1,20 @@
+/* @file   apu_watchdog.c
+*  @brief  Реализация сторожевого таймера
+*
+*  @detail Файл содержит код функций инициализации и обновления сторожевого таймера
+*
+*  @author Бугакова А.А.
+*/
+
+
 #include "apu_watchdog.h"
-#include "apu_defs.h"
 #include "apu_communication.h"
+#include "apu_defs.h"
+
 
 void init_watchdog(Watchdog* wd)
 {
-    wd->tolerance = 6;
+    wd->tolerance          = 6;
     wd->initiated_shutdown = 0;
 }
 
@@ -27,13 +37,14 @@ void update_watchdog(
         c1_fail = 1;
     else
         c1_fail = 0;
+
     if (c0_fail && c1_fail && !wd->initiated_shutdown)
     {
         char temp_str[STRING_LEN];
         sprintf(&temp_str, "WATCHDOG     at %7.2f : Loss of control. Initiating shutdown.\n", TIME(cur_time));
         print_to_buffer(mb, temp_str, fout);
         acts->watchdog_shutdown = 1;
-        wd->initiated_shutdown = 1;
+        wd->initiated_shutdown  = 1;
     }
     else if (!c0_fail || !c1_fail)
         wd->initiated_shutdown = 0;

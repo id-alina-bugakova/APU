@@ -1,44 +1,56 @@
+/* @file   apu_diagnostic.c
+*  @brief  Реализация функций проверки и сброса отказов
+*
+*  @detail Файл содержит код функций, ответственных за поиск и сброс отказов в системе, а также
+*  функции инициализации структуры признаков уведомления об отказах
+*
+*  @author Бугакова А.А.
+*/
+
+
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <stdio.h>
 
-#include "apu_defs.h"
+#include <stdio.h>
 #include "apu_diagnostic.h"
+#include "apu_defs.h"
+
 
 void init_problem_notifications(Problem_notifications* ntfs)
 {
-    ntfs->c_flame_sensor = 0;
-    ntfs->c_2_N1 = 0;
-    ntfs->c_4_EGT = 0;
-    ntfs->c_P3 = 0;
-    ntfs->c_T3 = 0;
-    ntfs->c_pump = 0;
-    ntfs->c_fuel_sov = 0;
+    ntfs->c_flame_sensor    = 0;
+    ntfs->c_2_N1            = 0;
+    ntfs->c_4_EGT           = 0;
+    ntfs->c_P3              = 0;
+    ntfs->c_T3              = 0;
+    ntfs->c_pump            = 0;
+    ntfs->c_fuel_sov        = 0;
     ntfs->c_fuel_sov_sensor = 0;
-    ntfs->c_asv = 0;
-    ntfs->c_asv_sensor = 0;
-    ntfs->c_bsv = 0;
-    ntfs->c_bsv_sensor = 0;
-    ntfs->c_fcv = 0;
-    ntfs->c_fcv_sensor = 0;
-    ntfs->c_xbleed = 0;
-    ntfs->c_xbleed_sensor = 0;
-    ntfs->N1_0 = 0;
-    ntfs->N1_1 = 0;
-    ntfs->EGT_A0 = 0;
-    ntfs->EGT_A1 = 0;
-    ntfs->EGT_B0 = 0;
-    ntfs->EGT_B1 = 0;
-    ntfs->fan = 0;
-    ntfs->NGC = 0;
-    ntfs->P_fuel = 0;
-    ntfs->asv = 0;
-    ntfs->P2 = 0;
-    ntfs->T2 = 0;
-    ntfs->fcv = 0;
-    ntfs->P_duct = 0;
-    ntfs->T_duct = 0;
+    ntfs->c_asv             = 0;
+    ntfs->c_asv_sensor      = 0;
+    ntfs->c_bsv             = 0;
+    ntfs->c_bsv_sensor      = 0;
+    ntfs->c_fcv             = 0;
+    ntfs->c_fcv_sensor      = 0;
+    ntfs->c_xbleed          = 0;
+    ntfs->c_xbleed_sensor   = 0;
+    ntfs->N1_0              = 0;
+    ntfs->N1_1              = 0;
+    ntfs->EGT_A0            = 0;
+    ntfs->EGT_A1            = 0;
+    ntfs->EGT_B0            = 0;
+    ntfs->EGT_B1            = 0;
+    ntfs->fan               = 0;
+    ntfs->NGC               = 0;
+    ntfs->P_fuel            = 0;
+    ntfs->asv               = 0;
+    ntfs->P2                = 0;
+    ntfs->T2                = 0;
+    ntfs->fcv               = 0;
+    ntfs->P_duct            = 0;
+    ntfs->T_duct            = 0;
 }
+
 
 void wellness_check(
     Gas_generator* ggen,
@@ -70,6 +82,7 @@ void wellness_check(
         psys->bsv.fault || psys->bsv.sensor.fault ||
         (psys->fcv.fault && psys->fcv.open == 1) || psys->fcv.sensor.fault ||
         psys->mpu_xbleed.fault || psys->mpu_xbleed.sensor.fault)
+
         data->critical_fault = 1;
     /* Некритические отказы: одного из датчиков вращения ротора, одного или нескольких датчиков EGT
     *  (не всех), вентилятора отсека, датчика частоты вращения генератора, датчика давления
@@ -89,6 +102,7 @@ void wellness_check(
         psys->T2.fault || psys->P2.fault ||
         (psys->fcv.fault && psys->fcv.open == 0) ||
         psys->T_duct.fault || psys->P_duct.fault)
+
         data->fault = 1;
 }
 
@@ -426,6 +440,7 @@ void wellness_check_verbose(
     }
 }
 
+
 void reset_fault(
     Messages* msgs,
     Data* data,
@@ -439,27 +454,27 @@ void reset_fault(
     Pneumatic_system* psys)
 {
     // Сброс отказов
-    msgs->fps.fire_sig = 0;         // + сброс пожарной сигнализации
-    ggen->flame_sensor.fault = 0;
-    rotor->N1_0.fault = 0;          rotor->N1_1.fault = 0;
-    rotor->EGT_A0.fault = 0;        rotor->EGT_A1.fault = 0;
-    rotor->EGT_B0.fault = 0;        rotor->EGT_B1.fault = 0;
-    fan->fault = 0;
-    gen->NGC.fault = 0;
-    comp->P3.fault = 0;             comp->T3.fault = 0;
-    pump->fault = 0;
-    pump->fuel_sov.fault = 0;       pump->fuel_sov.sensor.fault = 0;
-    pump->P_fuel.fault = 0;
-    psys->asv.fault = 0;            psys->asv.sensor.fault = 0;
-    psys->P2.fault = 0;             psys->T2.fault = 0;
-    psys->bsv.fault = 0;            psys->bsv.sensor.fault = 0;
-    psys->P_duct.fault = 0;         psys->T_duct.fault = 0;
-    psys->fcv.fault = 0;            psys->fcv.sensor.fault = 0;
-    psys->mpu_xbleed.fault = 0;     psys->mpu_xbleed.sensor.fault = 0;
+    msgs->fps.fire_sig          = 0;         // + сброс пожарной сигнализации
+    ggen->flame_sensor.fault    = 0;
+    rotor->N1_0.fault           = 0;        rotor->N1_1.fault               = 0;
+    rotor->EGT_A0.fault         = 0;        rotor->EGT_A1.fault             = 0;
+    rotor->EGT_B0.fault         = 0;        rotor->EGT_B1.fault             = 0;
+    fan->fault                  = 0;
+    gen->NGC.fault              = 0;
+    comp->P3.fault              = 0;        comp->T3.fault                  = 0;
+    pump->fault                 = 0;
+    pump->fuel_sov.fault        = 0;        pump->fuel_sov.sensor.fault     = 0;
+    pump->P_fuel.fault          = 0;
+    psys->asv.fault             = 0;        psys->asv.sensor.fault          = 0;
+    psys->P2.fault              = 0;        psys->T2.fault                  = 0;
+    psys->bsv.fault             = 0;        psys->bsv.sensor.fault          = 0;
+    psys->P_duct.fault          = 0;        psys->T_duct.fault              = 0;
+    psys->fcv.fault             = 0;        psys->fcv.sensor.fault = 0;
+    psys->mpu_xbleed.fault      = 0;        psys->mpu_xbleed.sensor.fault   = 0;
 
     // Сброс данных об отказах
-    data->fault = 0;
-    data->critical_fault = 0;
+    data->fault                 = 0;
+    data->critical_fault        = 0;
 
     // Сброс уведомлений об отказах
     init_problem_notifications(ntfs);
